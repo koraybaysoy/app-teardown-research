@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "koraybaysoy-app-teardown",
+  "version": "1.0.0",
+  "description": "Pre-design mobile app and game competitor teardown plugins with YouTube gameplay frame dissection, color palette extraction, web evidence archiving, and product blueprints.",
+  "owner": {
+    "name": "koraybaysoy",
+    "email": "57588479+koraybaysoy@users.noreply.github.com"
+  },
+  "plugins": [
+    {
+      "name": "app-teardown",
+      "description": "Pre-design mobile app and game competitor teardown: top-5 App Store & Google Play discovery, YouTube gameplay/walkthrough frame-by-frame extraction, HEX color palette cards, web evidence archiving, and actionable design blueprints.",
+      "version": "1.0.0",
+      "author": {
+        "name": "koraybaysoy",
+        "email": "57588479+koraybaysoy@users.noreply.github.com"
+      },
+      "source": "./",
+      "category": "productivity",
+      "keywords": [
+        "app-teardown",
+        "game-design",
+        "competitor-analysis",
+        "youtube-frames",
+        "ui-ux",
+        "monetization",
+        "retention",
+        "mcp"
+      ]
+    }
+  ]
+}

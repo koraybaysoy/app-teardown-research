@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "app-teardown-research"
+version = "1.1.0"
+description = "Pre-design mobile app and game competitor teardown: top-5 App Store & Google Play discovery, YouTube gameplay/walkthrough frame-by-frame extraction, HEX color palette cards, web evidence archiving, and actionable design blueprints."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "koraybaysoy" }]
+requires-python = ">=3.11"
+keywords = [
+    "app-teardown",
+    "game-design",
+    "competitor-analysis",
+    "youtube-frames",
+    "ui-ux",
+    "monetization",
+    "retention",
+    "mcp",
+    "ai-agent",
+    "skills",
+]
+dependencies = [
+    "google-play-scraper>=1.2.7",
+    "requests>=2.32.3",
+    "beautifulsoup4>=4.12.3",
+    "yt-dlp>=2025.1.15",
+    "Pillow>=11.0.0",
+    "mcp>=1.2.0",
+]
+
+[project.scripts]
+app-teardown = "app_teardown.cli:main"
+app-teardown-mcp = "app_teardown.mcp_server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

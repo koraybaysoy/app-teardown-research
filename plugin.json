@@ -1,0 +1,14 @@
+{
+  "name": "app-teardown",
+  "displayName": "App & Game Teardown & Blueprint Studio",
+  "version": "1.1.0",
+  "description": "Idea-to-Build mobile app & game studio: tech stack advisor, mechanic-based top-5 App Store & Google Play teardown, YouTube gameplay frame-by-frame dissection, HEX color palettes, real-world domain research, free UI/UX + 3D/2D model + SFX kits, and build-ready design blueprints.",
+  "author": "koraybaysoy",
+  "logo": "assets/icon.png",
+  "repository": "https://github.com/koraybaysoy/app-teardown-research",
+  "suggestedPrompts": [
+    "I want to build a hypercasual cooking gate-runner game where you pass through gates to build burgers. Suggest tech stack options first, then research top hypercasual competitors, hamburger layer domain rules, free UI/3D/SFX kits, and create a full build blueprint.",
+    "Analyze the top 5 habit tracker apps on App Store and Google Play, dissect onboarding and paywalls frame by frame, research habit psychology domain rules, and recommend free Flutter UI/icon/SFX kits.",
+    "Extract scene-change keyframes and HEX color palette cards from this gameplay YouTube URL and audit its HUD, core loop, and ad/IAP placement."
+  ]
+}

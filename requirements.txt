@@ -1,0 +1,7 @@
+google-play-scraper>=1.2.7
+requests>=2.32.3
+beautifulsoup4>=4.12.3
+yt-dlp>=2025.1.15
+Pillow>=11.0.0
+mcp>=1.2.0
+pytest>=8.3.0
