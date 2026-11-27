@@ -15,6 +15,13 @@
   <a href="README.ko.md">한국어</a>
 </p>
 
+<br>
+
+<p>
+  <img src="../../assets/dashboard-preview.png" alt="競合マトリクス、現実世界の題材調査、ゲームプレイのキーフレーム一覧、無料CC0キットを表示するローカルHTMLダッシュボードのプレビュー" width="100%">
+</p>
+<p><sub>各調査の完了時に自動生成される完全ローカルダッシュボード（<code>dashboard.html</code>、CDN不要、厳格なCSP、ライト/ダークZincテーマ対応）。</sub></p>
+
 </div>
 
 ---

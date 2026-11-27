@@ -22,6 +22,13 @@
   <img src="https://img.shields.io/badge/Agents-Claude%20%7C%20Codex%20%7C%20Antigravity%20%7C%20Cursor%20%7C%20Copilot-0EA5E9" alt="Multi-Agent Compatible">
 </p>
 
+<br>
+
+<p>
+  <img src="assets/dashboard-preview.png" alt="App Teardown Research local HTML dashboard preview showing competitor matrix, real-world subject study, gameplay keyframe timeline, and free CC0 kits" width="100%">
+</p>
+<p><sub>Self-contained local dashboard (<code>dashboard.html</code>, zero CDNs, strict CSP, Light and Dark Zinc themes) generated automatically after each research run.</sub></p>
+
 </div>
 
 ---

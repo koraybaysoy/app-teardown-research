@@ -15,6 +15,13 @@
   <a href="README.ko.md">한국어</a>
 </p>
 
+<br>
+
+<p>
+  <img src="../../assets/dashboard-preview.png" alt="Rakip matrisi, gerçek hayat görsel incelemesi, oynanış kare zaman çizelgesi ve ücretsiz CC0 kitlerini gösteren yerel App Teardown HTML dashboard önizlemesi" width="100%">
+</p>
+<p><sub>Her araştırma sonunda otomatik üretilen yerel dashboard (<code>dashboard.html</code>, sıfır CDN, katı CSP, açık ve koyu Zinc teması).</sub></p>
+
 </div>
 
 ---
