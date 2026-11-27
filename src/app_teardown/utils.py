@@ -5,10 +5,11 @@ from __future__ import annotations
 import ipaddress
 import os
 import re
+import socket
 import unicodedata
 from pathlib import Path
 from typing import Literal
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -17,7 +18,13 @@ from urllib3.util.retry import Retry
 from .config import (
     ALLOWED_ASSET_HOST_SUFFIXES,
     DEFAULT_USER_AGENT,
+    DOWNLOAD_TIMEOUT_SEC,
+    MAX_REFERENCE_IMAGE_BYTES,
     REQUEST_TIMEOUT_SEC,
+)
+
+_DISALLOWED_IMAGE_EXTENSIONS = (
+    ".svg", ".svgz", ".ico", ".html", ".htm", ".php", ".js", ".css", ".xml", ".pdf", ".zip", ".mp4",
 )
 
 _WINDOWS_RESERVED_NAMES = frozenset({
@@ -108,6 +115,70 @@ def validate_public_web_url(url: str) -> str:
     return trimmed
 
 
+def validate_public_image_url(url: str, resolve_dns: bool = True) -> str:
+    """Validate a public web image URL with SSRF defense (global-IP DNS check + non-SVG guard)."""
+    safe_url = validate_public_web_url(url)
+    parsed = urlparse(safe_url)
+    path_low = (parsed.path or "").lower()
+    if any(path_low.endswith(ext) for ext in _DISALLOWED_IMAGE_EXTENSIONS):
+        raise ValueError(f"Disallowed image extension in URL: {parsed.path}")
+    if resolve_dns:
+        host = (parsed.hostname or "").lower().strip(".")
+        try:
+            infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+        except OSError as exc:
+            raise ValueError(f"DNS resolution failed for host {host!r}: {exc}") from exc
+        if not infos:
+            raise ValueError(f"No IP addresses resolved for host {host!r}")
+        for info in infos:
+            ip_str = info[4][0]
+            ip_obj = ipaddress.ip_address(ip_str)
+            if not ip_obj.is_global:
+                raise ValueError(f"Non-global IP blocked for host {host!r}: {ip_str}")
+    return safe_url
+
+
+def fetch_public_image_bytes(
+    session: requests.Session,
+    url: str,
+    max_bytes: int = MAX_REFERENCE_IMAGE_BYTES,
+    timeout: int = DOWNLOAD_TIMEOUT_SEC,
+    max_redirects: int = 3,
+) -> tuple[bytes, str]:
+    """Download public web image bytes with per-hop SSRF DNS validation and size/type caps."""
+    current_url = url
+    for _ in range(max_redirects + 1):
+        safe_url = validate_public_image_url(current_url, resolve_dns=True)
+        resp = session.get(safe_url, stream=True, timeout=timeout, allow_redirects=False)
+        try:
+            if resp.status_code in (301, 302, 303, 307, 308):
+                loc = (resp.headers.get("Location") or "").strip()
+                if not loc:
+                    raise ValueError("Redirect without Location header")
+                current_url = urljoin(safe_url, loc)
+                continue
+            resp.raise_for_status()
+            ctype = (resp.headers.get("Content-Type") or "").lower()
+            if any(bad in ctype for bad in ("svg", "text/html", "javascript", "text/plain", "application/json", "xml")):
+                raise ValueError(f"Rejected non-raster Content-Type: {ctype}")
+            chunks: list[bytes] = []
+            total = 0
+            for chunk in resp.iter_content(chunk_size=65536):
+                if not chunk:
+                    continue
+                total += len(chunk)
+                if total > max_bytes:
+                    raise ValueError(f"Reference image exceeds max size cap ({max_bytes} bytes)")
+                chunks.append(chunk)
+            raw = b"".join(chunks)
+            if not raw:
+                raise ValueError("Empty image response")
+            return raw, safe_url
+        finally:
+            resp.close()
+    raise ValueError(f"Too many redirects while fetching {url}")
+
+
 def create_http_session(lang: str = "en", country: str = "us") -> requests.Session:
     """Create a resilient requests.Session with retries and clean headers."""
     session = requests.Session()
@@ -119,6 +190,7 @@ def create_http_session(lang: str = "en", country: str = "us") -> requests.Sessi
     )
     adapter = HTTPAdapter(max_retries=retries, pool_connections=12, pool_maxsize=12)
     session.mount("https://", adapter)
+    session.mount("http://", adapter)
     session.headers.update({
         "User-Agent": DEFAULT_USER_AGENT,
         "Accept-Language": f"{lang}-{country.upper()},{lang};q=0.9,en;q=0.8",

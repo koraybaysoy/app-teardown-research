@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 import json
+import socket
 from pathlib import Path
 
 import pytest
@@ -10,16 +12,30 @@ from PIL import Image
 
 from app_teardown.analyzer import analyze_competitor, compute_cross_analysis, detect_product_mode
 from app_teardown.asset_kit_finder import find_free_asset_kits
+from app_teardown.cli import build_parser
 from app_teardown.dashboard import write_dashboard
+from app_teardown.domain_researcher import (
+    _save_verified_reference_image,
+    build_domain_reference_sheet,
+    classify_domain_category,
+)
 from app_teardown.frame_extractor import (
     extract_palette_swatches,
     render_palette_card,
     select_hybrid_timestamps,
 )
-from app_teardown.idea_planner import decompose_idea, get_tech_profile, recommend_tech_stacks
+from app_teardown.idea_planner import (
+    build_domain_image_queries,
+    decompose_idea,
+    extract_core_subject,
+    get_tech_profile,
+    recommend_tech_stacks,
+)
 from app_teardown.models import (
+    ColorSwatch,
     CompetitorRecord,
     DomainEvidenceItem,
+    DomainReferenceImage,
     IAPItem,
     KeyframeRecord,
     ReviewSample,
@@ -37,6 +53,7 @@ from app_teardown.utils import (
     safe_join,
     slugify,
     validate_asset_url,
+    validate_public_image_url,
     validate_public_web_url,
 )
 from app_teardown.web_researcher import _decode_ddg_redirect, build_web_research_queries
@@ -160,11 +177,13 @@ def test_hybrid_timestamp_selection() -> None:
 
 
 def test_palette_extraction_and_card_render(tmp_path: Path) -> None:
-    img1 = Image.new("RGB", (120, 120), (255, 100, 30))
-    img2 = Image.new("RGB", (120, 120), (20, 40, 90))
+    img1 = Image.new("RGB", (180, 100), (255, 100, 30))
+    img2 = Image.new("RGB", (100, 180), (20, 40, 90))
     swatches = extract_palette_swatches([img1, img2], top_k=4)
     assert len(swatches) >= 2
     assert all(s.hex.startswith("#") and len(s.hex) == 7 for s in swatches)
+    # Non-square images must not introduce artificial black (#000000) mosaic padding
+    assert all(s.hex != "#000000" for s in swatches)
 
     card_path = tmp_path / "palette.png"
     assert render_palette_card(swatches, "Test Game", card_path) is True
@@ -391,13 +410,21 @@ def test_domain_kits_and_blueprint_reports_with_rebuild(tmp_path: Path) -> None:
 
     assert (run_dir / "DOMAIN_ARASTIRMASI.md").exists()
     assert (run_dir / "FREE_ASSET_VE_KIT_REHBERI.md").exists()
+    assert (run_dir / "PROTOTIP_VE_TAM_SURUM_PLANI.md").exists()
     assert (run_dir / "evidence" / "domain_sources.json").exists()
     assert (run_dir / "evidence" / "free_kits.json").exists()
     bp_text = (run_dir / "TASARIM_BLUEPRINT.md").read_text(encoding="utf-8")
     assert "Godot 4" in bp_text
     assert "Kenney Food Kit" in bp_text
     assert "DOMAIN_ARASTIRMASI.md" in bp_text
+    proto_text = (run_dir / "PROTOTIP_VE_TAM_SURUM_PLANI.md").read_text(encoding="utf-8")
+    assert "Hızlı Prototip Kapsamı" in proto_text
+    assert "Tam Sürümde Eklenecekler" in proto_text
+    assert "Kullanıcı Geri Bildirim & Revizyon Kapısı" in proto_text
+    assert "her şey tamam, yap" in proto_text
     assert dash.exists()
+    dash_js = (run_dir / "dashboard.js").read_text(encoding="utf-8")
+    assert "PROTOTIP_VE_TAM_SURUM_PLANI.md" in dash_js
     assert "kits-grid" in dash.read_text(encoding="utf-8")
 
     # Rebuild preserves idea_brief, domain_evidence, and free_asset_kits
@@ -406,4 +433,269 @@ def test_domain_kits_and_blueprint_reports_with_rebuild(tmp_path: Path) -> None:
     assert rebuilt.idea_brief.selected_tech == "godot"
     assert len(rebuilt.domain_evidence) == 1
     assert len(rebuilt.free_asset_kits) == len(kits)
+
+
+# --- Real-World Subject, Famous Brands & Visual Reference Tests ---
+
+
+def test_validate_public_image_url_blocks_svg_and_private_dns(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert validate_public_image_url("https://example.com/photos/burger.jpg", resolve_dns=False).startswith("https://")
+    assert validate_public_image_url("https://ts2.mm.bing.net/th?id=OIP.abc", resolve_dns=False).startswith("https://")
+
+    for bad in (
+        "https://example.com/vector.svg",
+        "https://example.com/page.html",
+        "https://127.0.0.1/img.png",
+        "https://localhost/img.jpg",
+        "https://internal.local/img.png",
+        "file:///C:/Windows/win.ini",
+    ):
+        with pytest.raises(ValueError):
+            validate_public_image_url(bad, resolve_dns=False)
+
+    # DNS resolution returning private / cloud metadata IP must be rejected
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda host, port, type=0: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 0))],
+    )
+    with pytest.raises(ValueError, match="Non-global IP blocked"):
+        validate_public_image_url("https://rebind.example.com/photo.jpg", resolve_dns=True)
+
+    # DNS resolution returning global public IP passes
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda host, port, type=0: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))],
+    )
+    assert validate_public_image_url("https://public.example.com/photo.jpg", resolve_dns=True) == "https://public.example.com/photo.jpg"
+
+
+def test_real_world_subject_famous_brands_and_dynamic_extraction() -> None:
+    # 1. Built-in burger profile
+    burger = decompose_idea("Kapılardan geçtiğin burger yapma oyunu istiyorum", selected_tech="godot")
+    assert burger.core_subject == "hamburger"
+    assert any("Big Mac" in b for b in burger.famous_brands)
+    assert any("Whopper" in b for b in burger.famous_brands)
+    img_cats = {q["category"] for q in burger.image_queries}
+    assert {"anatomy_layers", "how_its_made", "real_world_equivalent", "famous_brand"}.issubset(img_cats)
+
+    # 2. Dynamic extraction for an unseen custom idea
+    custom_subj = extract_core_subject("Çiçek dükkanı tycoon mobil oyun istiyorum")
+    assert "çiçek" in custom_subj.lower()
+    flower = decompose_idea("Flower shop boutique tycoon mobile game")
+    assert "flower" in flower.core_subject.lower()
+    assert len(flower.domain_topics) == 4
+    assert any("what is" in t.lower() for t in flower.domain_topics)
+    assert any("how " in t.lower() for t in flower.domain_topics)
+    assert any("layers" in t.lower() or "anatomy" in t.lower() for t in flower.domain_topics)
+    assert any("famous" in t.lower() for t in flower.domain_topics)
+
+    # 3. Explicit subject + famous brands override
+    explicit = decompose_idea(
+        "My custom craft game",
+        explicit_subject="taco",
+        explicit_famous_brands=["Taco Bell Crunchwrap", "Chipotle Street Taco"],
+    )
+    assert explicit.core_subject == "taco"
+    assert explicit.famous_brands == ["Taco Bell Crunchwrap", "Chipotle Street Taco"]
+    q_list = build_domain_image_queries("taco", famous_brands=explicit.famous_brands)
+    assert any(q["label"] == "Taco Bell Crunchwrap" and q["category"] == "famous_brand" for q in q_list)
+
+
+def test_domain_category_classification_reference_sheet_and_dashboard_rebuild(tmp_path: Path) -> None:
+    assert classify_domain_category("what is a hamburger real world definition") == "what_is_it"
+    assert classify_domain_category("how a hamburger is made grilling stages") == "how_its_made"
+    assert classify_domain_category("classic hamburger layers assembly order") == "anatomy_layers"
+    assert classify_domain_category("McDonald's Big Mac vs Burger King Whopper") == "famous_brands"
+
+    run_dir = tmp_path / "2026-11-27_1800_burger-refs"
+    refs_dir = run_dir / "assets" / "domain_references"
+    (run_dir / "apps").mkdir(parents=True, exist_ok=True)
+
+    # Small image must be rejected (< 120px)
+    tiny_buf = BytesIO()
+    Image.new("RGB", (60, 60), (200, 100, 50)).save(tiny_buf, format="PNG")
+    with pytest.raises(ValueError, match="Image too small"):
+        _save_verified_reference_image(tiny_buf.getvalue(), refs_dir, "ref_tiny", run_dir)
+
+    # Valid images saved, verified, sheet composed, and palette rendered
+    buf1 = BytesIO()
+    Image.new("RGB", (320, 240), (216, 146, 59)).save(buf1, format="JPEG")
+    _, w1, h1, fmt1, sz1, hex1, fp1 = _save_verified_reference_image(buf1.getvalue(), refs_dir, "ref_01_brand_big-mac", run_dir)
+    assert (w1, h1, fmt1) == (320, 240, "JPEG")
+    assert sz1 > 0 and len(hex1) >= 1 and len(fp1) == 16
+
+    buf2 = BytesIO()
+    Image.new("RGB", (300, 300), (86, 154, 50)).save(buf2, format="PNG")
+    _, w2, h2, fmt2, sz2, hex2, fp2 = _save_verified_reference_image(buf2.getvalue(), refs_dir, "ref_02_anatomy_layers", run_dir)
+    assert fp1 != fp2
+
+    refs = [
+        DomainReferenceImage(
+            evidence_id="EV-REF-01",
+            category="famous_brand",
+            subject_label="McDonald's Big Mac <script>alert(1)</script>",
+            query="McDonald's Big Mac product photo",
+            title="Big Mac",
+            source_engine="bing_images",
+            source_url="https://example.com/bigmac.jpg",
+            page_url="https://example.com/bigmac",
+            domain="example.com",
+            local_path="assets/domain_references/ref_01_brand_big-mac.jpg",
+            width=w1,
+            height=h1,
+            image_format=fmt1,
+            file_size_bytes=sz1,
+            dominant_colors=hex1,
+            downloaded=True,
+        ),
+        DomainReferenceImage(
+            evidence_id="EV-REF-02",
+            category="anatomy_layers",
+            subject_label="Hamburger Katman Anatomisi",
+            query="hamburger layers diagram",
+            title="Burger Layers",
+            source_engine="wikimedia_commons",
+            source_url="https://commons.wikimedia.org/wiki/File:Burger.jpg",
+            page_url="https://commons.wikimedia.org/wiki/File:Burger.jpg",
+            domain="commons.wikimedia.org",
+            local_path="assets/domain_references/ref_02_anatomy_layers.jpg",
+            width=w2,
+            height=h2,
+            image_format=fmt2,
+            file_size_bytes=sz2,
+            dominant_colors=hex2,
+            downloaded=True,
+        ),
+    ]
+
+    sheet_rel = build_domain_reference_sheet(
+        refs,
+        run_dir=run_dir,
+        output_path=refs_dir / "domain_reference_sheet.png",
+        subject_title="hamburger",
+    )
+    assert sheet_rel == "assets/domain_references/domain_reference_sheet.png"
+    assert (run_dir / sheet_rel).exists()
+
+    pal_swatches = [ColorSwatch(hex="#D8923B", rgb=(216, 146, 59), ratio_pct=60.0, luminance=0.58, temperature="warm")]
+    pal_card_path = refs_dir / "domain_palette_card.png"
+    assert render_palette_card(pal_swatches, "Real-World Burger", pal_card_path) is True
+
+    brief = decompose_idea("Hypercasual hamburger gate runner", product_mode="game", selected_tech="godot")
+    run = TeardownRun(
+        run_id="2026-11-27_1800_burger-refs",
+        campaign_name="burger-refs",
+        query=brief.mechanic_query,
+        product_mode="game",
+        stores=["google_play"],
+        country="us",
+        lang="en",
+        limit_per_store=5,
+        max_video_sec=240,
+        max_frames=24,
+        created_at="2026-11-27T18:00:00+00:00",
+        output_dir=str(run_dir),
+        idea_brief=brief,
+        domain_evidence=[
+            DomainEvidenceItem(
+                evidence_id="EV-DOM-01",
+                topic="hamburger",
+                query="hamburger",
+                title="Hamburger (Wikipedia)",
+                url="https://en.wikipedia.org/wiki/Hamburger",
+                domain="en.wikipedia.org",
+                snippet="A hamburger is a sandwich consisting of a cooked beef patty inside a sliced bun.",
+                category="what_is_it",
+                source_engine="wikipedia",
+            )
+        ],
+        domain_references=refs,
+        domain_reference_sheet_path=sheet_rel,
+        domain_palette=pal_swatches,
+        domain_palette_card_path="assets/domain_references/domain_palette_card.png",
+        competitors=[],
+        cross_analysis={"total_competitors": 0, "dominant_mode": "game"},
+    )
+    write_campaign_reports(run, run_dir)
+    dash = write_dashboard(run, run_dir)
+
+    dom_md = (run_dir / "DOMAIN_ARASTIRMASI.md").read_text(encoding="utf-8")
+    assert "EV-REF-01" in dom_md
+    assert "domain_reference_sheet.png" in dom_md
+    assert "Nedir & Gerçek Hayat Karşılığı" in dom_md
+    assert "Ünlü Markalar İncelemesi" in dom_md
+    assert (run_dir / "evidence" / "domain_references.json").exists()
+
+    html_text = dash.read_text(encoding="utf-8")
+    js_text = (run_dir / "dashboard.js").read_text(encoding="utf-8")
+    assert "domain-refs-grid" in html_text
+    assert "ref-cat-filter" in html_text
+    assert "<script>alert(1)</script>" not in html_text
+    assert "innerHTML" not in js_text
+
+    # Rebuild preserves all visual reference fields and famous brands
+    rebuilt = rebuild_teardown_reports(run_dir)
+    assert len(rebuilt.domain_references) == 2
+    assert rebuilt.domain_reference_sheet_path == sheet_rel
+    assert rebuilt.domain_palette_card_path == "assets/domain_references/domain_palette_card.png"
+    assert len(rebuilt.domain_palette) == 1
+    assert rebuilt.idea_brief is not None and rebuilt.idea_brief.core_subject == "hamburger"
+
+
+def test_cli_parser_supports_new_subject_and_brand_flags() -> None:
+    parser = build_parser()
+    td_args = parser.parse_args([
+        "teardown",
+        "--idea", "burger gate runner",
+        "--subject", "hamburger",
+        "--famous-brands", "McDonald's Big Mac", "Burger King Whopper",
+        "--max-domain-images", "8",
+    ])
+    assert td_args.subject == "hamburger"
+    assert td_args.famous_brands == ["McDonald's Big Mac", "Burger King Whopper"]
+    assert td_args.max_domain_images == 8
+
+    dom_args = parser.parse_args([
+        "research-domain",
+        "--idea", "burger oyunu",
+        "--brands", "McDonald's Big Mac", "Shake Shack",
+        "--out-dir", "teardowns/demo",
+        "--max-images", "6",
+    ])
+    assert dom_args.idea == "burger oyunu"
+    assert dom_args.brands == ["McDonald's Big Mac", "Shake Shack"]
+    assert dom_args.max_images == 6
+
+
+def test_app_mode_prototype_and_full_release_plan_generation(tmp_path: Path) -> None:
+    run_dir = tmp_path / "2026-11-27_1900_habit-flutter"
+    (run_dir / "apps").mkdir(parents=True, exist_ok=True)
+    brief = decompose_idea("Günlük alışkanlık ve su takip uygulaması", product_mode="app", selected_tech="flutter")
+    run = TeardownRun(
+        run_id="2026-11-27_1900_habit-flutter",
+        campaign_name="habit-flutter",
+        query=brief.mechanic_query,
+        product_mode="app",
+        stores=["apple_app_store"],
+        country="us",
+        lang="en",
+        limit_per_store=5,
+        max_video_sec=240,
+        max_frames=24,
+        created_at="2026-11-27T19:00:00+00:00",
+        output_dir=str(run_dir),
+        idea_brief=brief,
+        competitors=[],
+        cross_analysis={"total_competitors": 0, "dominant_mode": "app"},
+    )
+    write_campaign_reports(run, run_dir)
+    proto_md = (run_dir / "PROTOTIP_VE_TAM_SURUM_PLANI.md").read_text(encoding="utf-8")
+    assert "Flutter (Dart)" in proto_md
+    assert "Kısa Onboarding" in proto_md
+    assert "Paywall" in proto_md
+    assert "her şey tamam, yap" in proto_md
+
+
 

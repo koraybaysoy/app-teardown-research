@@ -9,11 +9,15 @@ Yeni bir ürün tasarlarken yapılan en büyük hata, rakipleri yalnızca dar te
 - **Örnek 1 (Oyun):** *"Kapılardan geçtiğin hypercasual yemek yapma / hamburger dizme oyunu"*
   - **Yanlış rakip araması:** Sadece "yemek tarifi" veya "restoran simülatörü" aramak.
   - **Doğru Rakip Benchmark Ekseni (Mekanik):** `hypercasual runner stack gate game` (*Coffee Stack*, *Sandwich Runner*, *Tall Man Run*, *Mob Control*, *Count Masters*) -> HUD, kamera açısı, kapı çarpma matematiği, reklam kadansı, başparmak kontrolü buradan öğrenilir!
-  - **Doğru Domain Araştırması Ekseni (Tema):** *"Hamburger katman sırası nedir? Alt ekmekten üst ekmeğe sos/marul/köfte/peynir/domates/turşu sırası, pişirme evreleri, müşteri sipariş çeşitleri"* -> Oyunun içeriği, puanlama mantığı ve görsel tatmin kuralları buradan öğrenilir!
+  - **Doğru Domain Araştırması Ekseni (Gerçek Hayat Konusu + Ünlü Marka Referansları):**
+    1. **Nedir & Gerçek Hayat Karşılığı:** Hamburger nedir, gerçek dünyada ne tür bir tüketim ve sunum deneyimine denk gelir?
+    2. **Nasıl Yapılır (Süreç):** Köfte mühürleme, peynir eritme, ekmek kızartma, soslama ve istifleme sırası.
+    3. **Katmanlar & Anatomi:** Alt ekmek -> sos -> marul bariyeri -> ızgara köfte -> erimiş cheddar -> domates -> turşu -> soğan -> üst susamlı ekmek.
+    4. **Ünlü Markalar Görsel İncelemesi (`EV-REF-XX`):** *McDonald's Big Mac*, *Burger King Whopper*, *Shake Shack ShackBurger*, *Five Guys*, *In-N-Out Double-Double* fotoğrafları (`assets/domain_references/domain_reference_sheet.png`) üzerinden katman yüksekliği, renk kontrastı, ekmek parıltısı ve okunabilirlik incelenir (marka logoları kopyalanmadan özgün stilize tasarım üretilir).
 
 - **Örnek 2 (Genel Uygulama):** *"Oyunlaştırılmış su içme ve günlük alışkanlık takip uygulaması"*
   - **Rakip Benchmark Ekseni:** `habit tracker routine app` (*Habitica*, *Fabulous*, *Streaks*, *Waterllama*) -> Onboarding, paywall zamanlaması, tab bar IA ve bildirim retention'ı buradan öğrenilir.
-  - **Domain Araştırması Ekseni:** *"Günlük su ihtiyacı hesaplama, BJ Fogg davranış modeli, streak kaybı psikolojisi"* -> Uygulamanın bilimsel hesaplama ve bildirim kuralları buradan öğrenilir.
+  - **Domain Araştırması Ekseni:** *"Alışkanlık döngüsü nedir (ipucu-istek-tepki-ödül), gerçek hayatta bullet journal / duvar takvimi / Seinfeld zinciri nasıl işler, BJ Fogg ve James Clear yöntemleri nelerdir?"* -> Uygulamanın davranışsal kuralları ve gerçek hayat metaforları buradan öğrenilir.
 
 ## 2. Teknoloji Öneri Matrisi (Kullanıcıya Sunulacak Seçenekler)
 

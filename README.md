@@ -2,7 +2,7 @@
 
 # App & Game Teardown Research Toolkit
 
-**Local mobile app and game competitor analysis for AI coding agents. Plan your tech stack, dissect top App Store and Google Play rivals frame by frame from YouTube gameplay, research real-world domain rules, collect free CC0 UI/UX, 3D, and SFX kits, and ship a build-ready design blueprint.**
+**Local mobile app and game competitor analysis for AI coding agents. Plan your tech stack, dissect top App Store and Google Play rivals frame by frame from YouTube gameplay, research real-world subjects with famous brand reference photos and layer anatomy, collect free CC0 UI/UX, 3D, and SFX kits, and ship a build-ready design blueprint.**
 
 <p>
   <strong>English</strong> ·
@@ -34,9 +34,13 @@ This Python toolkit runs that whole product teardown on your own machine with ze
 
 ## What It Does
 
-- **Step 0: Idea Intake, Tech Advisor, and Mechanic vs. Domain Split (`plan-idea`):**
+- **Step 0: Idea Intake, Tech Advisor, and Mechanic vs. Real-World Subject Split (`plan-idea`):**
   - Reads your raw app or game concept and ranks 3 fitting tech stacks with clear trade-offs (Godot 4, Unity 6, Phaser for games; Flutter, React Native, Native for apps). You pick the stack first.
-  - Separates competitor mechanic search from real-world domain research. If you pitch a hypercasual gate-runner about stacking burgers, it benchmarks top hypercasual runner games on both stores instead of recipe apps. At the same time, it researches real hamburger layer order, cooking stages, and topping rules into `DOMAIN_ARASTIRMASI.md`.
+  - Separates competitor mechanic search from real-world subject research. If you pitch a hypercasual gate-runner about stacking burgers, it benchmarks top hypercasual runner games on both stores instead of recipe apps. At the same time, it identifies the real-world subject (`hamburger`), iconic real-world brands (`McDonald's Big Mac`, `Burger King Whopper`, `Shake Shack`, `Five Guys`, `In-N-Out`), and structured research queries covering what it is, how it is made, its layers/anatomy, and its real-world equivalent.
+- **Real-World Subject & Famous Brand Visual Reference Engine (`research-domain`):**
+  - Pulls encyclopedic subject definitions, step-by-step preparation stages, layer/component breakdowns, and famous brand profiles via the official Wikipedia API and DuckDuckGo into `DOMAIN_ARASTIRMASI.md`.
+  - Automatically searches and downloads real-world anatomy, preparation, and famous brand reference photos (zero API keys via Bing Images, Wikimedia Commons, and Openverse, with per-hop SSRF DNS validation and Pillow verification) into `assets/domain_references/`.
+  - Composes a category-labeled visual moodboard contact sheet (`domain_reference_sheet.png`) and extracts a real-world subject HEX palette card (`domain_palette_card.png`) so AI agents can study silhouettes, layer order, and natural colors directly before designing original stylized assets.
 - **Free UI/UX, 3D/2D Model, SFX, Font, and SDK Kit Finder (`find-kits`):**
   - Curates and web-searches free (`CC0 1.0`, `MIT`, `SIL OFL`, royalty-free) production packs matched to your theme and chosen engine.
   - Covers UI kits (Kenney UI, Figma Community, Game-Icons, Lucide), 3D/2D models (Kenney Food Kit, KayKit, Quaternius, Poly Pizza), sound effects (Kenney Audio, Freesound CC0, Mixkit), Google Fonts, and free plugins (Godot AdMob, PhantomCamera, Godot Shaders, RevenueCat) in `FREE_ASSET_VE_KIT_REHBERI.md`.
@@ -53,9 +57,13 @@ This Python toolkit runs that whole product teardown on your own machine with ze
   - **App Mode:** Onboarding and time-to-value, navigation and thumb-zone layout, visual design system, UX delights, paywall timing and pricing anchoring, habit loops, and churn triggers.
 - **Zero-API-Key Web Evidence and Evidence Ledger (`evidence.json`):**
   - Collects revenue estimates, monetization write-ups, and UX/game teardowns into `web_research.md` and `evidence/web_sources.json`.
-  - Tags every artifact with a stable Evidence ID (`EV-STORE-01`, `EV-VID-01`, `EV-FRAME-01-04`, `EV-PALETTE-01`, `EV-WEB-02`, `EV-DOM-01`, `EV-KIT-01`) so reports cite real local files or URLs instead of guesswork.
-- **Reports, Design Blueprint, and Local Dashboard (`dashboard.html`):**
-  - Writes per-app `teardown_report.md`, `web_research.md`, `store_metadata.md`, `evidence.json`, plus campaign-wide `GENEL_TEARDOWN_RAPORU.md`, `DOMAIN_ARASTIRMASI.md`, `FREE_ASSET_VE_KIT_REHBERI.md`, `TASARIM_BLUEPRINT.md`, `apps_index.csv`, and a self-contained local `dashboard.html` (strict CSP, zero CDNs, zero `innerHTML`).
+  - Tags every artifact with a stable Evidence ID (`EV-STORE-01`, `EV-VID-01`, `EV-FRAME-01-04`, `EV-PALETTE-01`, `EV-WEB-02`, `EV-DOM-01`, `EV-REF-01`, `EV-KIT-01`) so reports cite real local files or URLs instead of guesswork.
+- **Reports, Design Blueprint, Prototype Gate, and Local Dashboard (`dashboard.html`):**
+  - Writes per-app `teardown_report.md`, `web_research.md`, `store_metadata.md`, `evidence.json`, plus campaign-wide `GENEL_TEARDOWN_RAPORU.md`, `DOMAIN_ARASTIRMASI.md`, `FREE_ASSET_VE_KIT_REHBERI.md`, `TASARIM_BLUEPRINT.md`, `PROTOTIP_VE_TAM_SURUM_PLANI.md`, `apps_index.csv`, and a self-contained local `dashboard.html` (strict CSP, zero CDNs, zero `innerHTML`).
+- **Prototype -> Feedback -> Full-Version Build Workflow:**
+  - After all research and reports finish, the agent asks whether to build a quick working prototype demonstrating the core screens and loop.
+  - Once the prototype runs, it presents a clear Prototype vs. Full Release roadmap (what works now, what will be added next, and what the finished product will look like) and asks for your feedback, tweaks, or extra ideas.
+  - Only when you confirm everything is ready does the agent build the complete full-version app or game from start to finish.
 
 ## Install as Plugin or Agent Skills
 
@@ -133,12 +141,14 @@ bash ./setup.sh
 # 1. Preview top 5 popular competitors across both stores
 ./.venv/bin/python -m app_teardown.cli discover "hypercasual runner stack gate" --stores both --country us --lang en --limit 5
 
-# 2. Full Idea-to-Build teardown (top 5 per store, YouTube gameplay clips, 24 hybrid frames, HEX palettes, domain research, free UI/3D/SFX kits, reports, dashboard)
+# 2. Full Idea-to-Build teardown (top 5 per store, YouTube gameplay clips, 24 hybrid frames, HEX palettes, real-world subject + famous brand reference photos, free UI/3D/SFX kits, reports, dashboard)
 ./.venv/bin/python -m app_teardown.cli teardown \
   --idea "hypercasual cooking gate runner game building burgers" \
   --query "hypercasual runner stack gate game" \
   --tech godot \
   --theme "burger cooking food" \
+  --subject "hamburger" \
+  --famous-brands "McDonald's Big Mac" "Burger King Whopper" "Shake Shack ShackBurger" "Five Guys Cheeseburger" \
   --stores both \
   --mode game \
   --limit 5 \
@@ -146,10 +156,11 @@ bash ./setup.sh
   --lang en \
   --max-video-sec 240 \
   --max-frames 24 \
+  --max-domain-images 12 \
   --name "hypercasual-burger-gate-godot"
 
-# 3. Standalone real-world domain research and free asset kit finder
-./.venv/bin/python -m app_teardown.cli research-domain "classic hamburger layers assembly order" "fast food burger ingredients"
+# 3. Standalone real-world subject + famous brand photo research and free asset kit finder
+./.venv/bin/python -m app_teardown.cli research-domain --idea "hypercasual burger making game" --out-dir "teardowns/burger-domain-ref" --max-images 12
 ./.venv/bin/python -m app_teardown.cli find-kits --mode game --tech godot --theme "burger cooking food"
 
 # 4. Teardown a non-game mobile app niche (auto or --mode app)
@@ -211,11 +222,18 @@ teardowns/
     ├── DOMAIN_ARASTIRMASI.md          # Real-world subject-matter rules (e.g. burger layer order, cooking stages)
     ├── FREE_ASSET_VE_KIT_REHBERI.md   # Verified free CC0/MIT UI/UX, 3D/2D model, SFX/audio, font, and SDK kits
     ├── TASARIM_BLUEPRINT.md           # Build-ready engine-specific architecture, UI/UX, color, monetization, and sprint plan
+    ├── PROTOTIP_VE_TAM_SURUM_PLANI.md # Quick prototype scope, prototype-to-full delta table, and user feedback gate
     ├── apps_index.csv                 # Spreadsheet-ready competitor summary
     ├── apps_index.json                # Complete structured run payload
     ├── evidence/
     │   ├── domain_sources.json
+    │   ├── domain_references.json
     │   └── free_kits.json
+    ├── assets/
+    │   └── domain_references/         # Downloaded real-world & famous brand photos + moodboard + palette card
+    │       ├── domain_reference_sheet.png
+    │       ├── domain_palette_card.png
+    │       └── ref_01_*.jpg
     └── apps/
         └── gp_example-game_com-example/
             ├── teardown_report.md     # Evidence-cited UI/UX, gameplay, monetization, and retention teardown
@@ -236,7 +254,7 @@ teardowns/
 
 ## Security and Privacy Notes
 
-- **SSRF Protection:** Media and store requests enforce HTTPS and allowlisted store, CDN, and YouTube hosts. Public web citation URLs reject direct IPs, localhost, and private or internal hosts.
+- **SSRF Protection:** Media and store requests enforce HTTPS and allowlisted store, CDN, and YouTube hosts. Public web citation URLs and real-world reference photo downloads reject direct IPs, localhost, private/non-global DNS resolutions, SVG/HTML payloads, and unsafe redirect hops.
 - **Path Safety:** Output folders and filenames are ASCII-slugified and checked via `safe_join()` against directory traversal.
 - **Subprocess Safety:** `ffmpeg` and `ffprobe` always run with `shell=False` and explicit argument arrays.
 - **Safe Local Dashboard:** `dashboard.html` enforces a strict Content Security Policy and creates all DOM nodes via `document.createElement` and `textContent` (zero `innerHTML`).

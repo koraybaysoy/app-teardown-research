@@ -11,6 +11,10 @@ Tüm teardown raporları (`teardown_report.md`, `GENEL_TEARDOWN_RAPORU.md`, `TAS
   - Mağaza ekran görüntüleri: `[EV-SHOTS-01]`
   - Kullanıcı yorumu teması veya alıntısı: `[EV-REV-03]`
   - Web araştırma kaynağı: `[EV-WEB-02]` (mümkünse tıklanabilir kaynak URL'siyle)
+  - Gerçek hayat konu / domain bilgi kaynağı (Wikipedia veya web): `[EV-DOM-01]`
+  - İndirilen gerçek hayat veya ünlü marka referans fotoğrafı / moodboard: `[EV-REF-01]`
+  - Ücretsiz asset / UI / model / SFX / SDK kiti: `[EV-KIT-01]`
+- **Telif & Marka Referans Sınırı:** `[EV-REF-XX]` ile indirilen gerçek hayat ve ünlü marka fotoğrafları yalnızca anatomi, katman sırası, oran, silüet ve renk referansı olarak incelenir. Raporlarda ve tasarım blueprint'inde asla marka logosu veya telifli fotoğraf kopyalama önerilmez; her zaman özgün stilize uyarlama tarif edilir.
 - **Gözlem ile hipotezi ayır:** Videoda veya kanıtta doğrudan görünmeyen bir çıkarım yapıyorsan (örneğin D30 retention tahmini veya arka uç eCPM tahmini), bunu açıkça *"Hipotez:"* veya *"Sektör gözlemi:"* şeklinde belirt; asla kesin ölçülmüş veri gibi sunma.
 - **Eksik kanıtı gizleme:** Eğer bir rakip için YouTube videosu indirilemediyse veya web gelir verisi bulunamadıysa bunu şeffaf biçimde yaz ve mevcut kanıtlarla (store screenshots, IAP tablosu, yorumlar) ne kadarının doğrulandığını belirt.
 

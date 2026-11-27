@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from .config import (
     DEFAULT_MAX_FRAMES,
@@ -177,22 +177,38 @@ def _classify_color_temperature(r: int, g: int, b: int) -> str:
     return "neutral"
 
 
+def load_ui_font(size: int = 14) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load a clean Unicode-capable system TTF font (supporting Turkish & symbols), with safe default fallback."""
+    candidates = [
+        "C:/Windows/Fonts/segoeui.ttf",
+        "C:/Windows/Fonts/arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+    ]
+    for fp in candidates:
+        if Path(fp).exists():
+            try:
+                return ImageFont.truetype(fp, size=size)
+            except OSError:
+                continue
+    return ImageFont.load_default()
+
+
 def extract_palette_swatches(images: list[Image.Image], top_k: int = 8) -> list[ColorSwatch]:
-    """Extract aggregated dominant color swatches across one or more PIL images."""
+    """Extract aggregated dominant color swatches across one or more PIL images without black-padding bias."""
     if not images:
         return []
-    # Compose a compact mosaic thumbnail so median-cut quantization captures cross-screen palette
+    # Fit each image tightly into 96x96 and pack into a 1-row strip (zero empty cells, zero letterbox padding)
     thumbs: list[Image.Image] = []
     for im in images[:16]:
-        rgb = im.convert("RGB").copy()
-        rgb.thumbnail((96, 96))
-        thumbs.append(rgb)
-    cols = min(4, len(thumbs))
-    rows = math.ceil(len(thumbs) / cols)
-    mosaic = Image.new("RGB", (cols * 96, rows * 96), (0, 0, 0))
+        rgb = im.convert("RGB")
+        fitted = ImageOps.fit(rgb, (96, 96), method=Image.Resampling.BILINEAR)
+        thumbs.append(fitted)
+    mosaic = Image.new("RGB", (len(thumbs) * 96, 96))
     for i, th in enumerate(thumbs):
-        r, c = divmod(i, cols)
-        mosaic.paste(th, (c * 96, r * 96))
+        mosaic.paste(th, (i * 96, 0))
 
     quantized = mosaic.quantize(colors=top_k, method=Image.Quantize.MEDIANCUT)
     palette = quantized.getpalette() or []
@@ -228,19 +244,22 @@ def render_palette_card(swatches: list[ColorSwatch], title: str, output_path: Pa
     try:
         n = len(swatches)
         card_w = max(720, n * 124 + 40)
-        card_h = 210
+        card_h = 216
         img = Image.new("RGB", (card_w, card_h), (15, 20, 30))
         draw = ImageDraw.Draw(img)
-        draw.text((20, 14), f"Color Palette Analysis — {title[:64]}", fill=(240, 245, 255))
+        title_font = load_ui_font(16)
+        hex_font = load_ui_font(14)
+        meta_font = load_ui_font(12)
+        draw.text((20, 14), f"Color Palette Analysis - {title[:64]}", fill=(240, 245, 255), font=title_font)
 
         box_w = (card_w - 40 - (n - 1) * 10) // n
         for i, sw in enumerate(swatches):
             x0 = 20 + i * (box_w + 10)
-            y0 = 46
-            y1 = 148
+            y0 = 48
+            y1 = 150
             draw.rectangle([x0, y0, x0 + box_w, y1], fill=sw.rgb, outline=(70, 82, 104), width=1)
-            draw.text((x0 + 4, y1 + 8), sw.hex, fill=(240, 245, 255))
-            draw.text((x0 + 4, y1 + 26), f"{sw.ratio_pct:.1f}% | {sw.temperature}", fill=(156, 168, 188))
+            draw.text((x0 + 4, y1 + 8), sw.hex, fill=(240, 245, 255), font=hex_font)
+            draw.text((x0 + 4, y1 + 28), f"{sw.ratio_pct:.1f}% | {sw.temperature}", fill=(156, 168, 188), font=meta_font)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         img.save(output_path, format="PNG", optimize=True)
         return True

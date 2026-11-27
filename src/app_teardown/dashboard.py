@@ -94,6 +94,56 @@ header.hero {
 }
 .kit-card a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.94rem; }
 .kit-card a:hover { text-decoration: underline; }
+.ref-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.ref-overview img {
+  max-height: 240px;
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.ref-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ref-card img {
+  width: 100%;
+  height: 156px;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #0b0f17;
+}
+.ref-card .ref-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ref-card a { color: var(--accent); text-decoration: none; font-size: 0.76rem; }
+.ref-card a:hover { text-decoration: underline; }
+.disclaimer-note {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0 0 12px 0;
+}
 .palette-wall { display: flex; flex-wrap: wrap; gap: 16px; }
 .wall-tile {
   width: 150px;
@@ -341,6 +391,7 @@ _DASHBOARD_JS = """/* App Teardown & Idea-to-Build Visual Studio — Safe DOM re
   var ca = runData.cross_analysis || {};
   var brief = runData.idea_brief || null;
   var domainEv = Array.isArray(runData.domain_evidence) ? runData.domain_evidence : [];
+  var domainRefs = Array.isArray(runData.domain_references) ? runData.domain_references : [];
   var freeKits = Array.isArray(runData.free_asset_kits) ? runData.free_asset_kits : [];
 
   // Lightbox
@@ -378,6 +429,7 @@ _DASHBOARD_JS = """/* App Teardown & Idea-to-Build Visual Studio — Safe DOM re
     ["Analiz Edilen Rakip", String(ca.total_competitors || comps.length)],
     ["Toplam Video Karesi", String(ca.total_gameplay_frames || 0) + " kare"],
     ["Web + Domain Kanıtı", String((ca.total_web_evidence_sources || 0) + domainEv.length) + " kaynak"],
+    ["Gerçek Hayat Referansı", String(domainRefs.length) + " fotoğraf"],
     ["Ücretsiz Asset Kiti", String(freeKits.length) + " paket"],
     ["Baskın Gelir Modeli", String(ca.dominant_monetization || "-")],
     ["Ort. Kanıt Skoru", String(ca.avg_evidence_score || 0) + " / 100"]
@@ -391,25 +443,108 @@ _DASHBOARD_JS = """/* App Teardown & Idea-to-Build Visual Studio — Safe DOM re
   // Idea & Tech Brief Panel
   var ideaPanel = document.getElementById("idea-panel");
   var ideaBody = document.getElementById("idea-body");
-  if (brief && (brief.raw_idea || brief.selected_tech)) {
+  if (brief && (brief.raw_idea || brief.selected_tech || brief.core_subject)) {
     ideaPanel.classList.remove("hidden");
     if (brief.raw_idea) ideaBody.appendChild(el("div", { class: "app-sub" }, "Fikir: " + brief.raw_idea));
     var bRow = el("div", { class: "badges" });
     if (brief.selected_tech) bRow.appendChild(el("span", { class: "badge mode" }, "Seçilen Teknoloji: " + brief.selected_tech.toUpperCase()));
     if (brief.mechanic_query) bRow.appendChild(el("span", { class: "badge good" }, "Mekanik Araştırması: " + brief.mechanic_query));
-    if (brief.theme_label) bRow.appendChild(el("span", { class: "badge warn" }, "Tema / Domain: " + brief.theme_label));
+    if (brief.core_subject) bRow.appendChild(el("span", { class: "badge ios" }, "Gerçek Hayat Konusu: " + brief.core_subject));
+    if (brief.theme_label) bRow.appendChild(el("span", { class: "badge warn" }, "Tema / Asset: " + brief.theme_label));
+    if (Array.isArray(brief.famous_brands) && brief.famous_brands.length > 0) {
+      bRow.appendChild(el("span", { class: "badge" }, "Ünlü Markalar: " + brief.famous_brands.join(", ")));
+    }
     ideaBody.appendChild(bRow);
     var docLinks = el("div", { class: "links-row" });
     docLinks.appendChild(el("a", { href: "TASARIM_BLUEPRINT.md" }, "Tasarım Blueprint (TASARIM_BLUEPRINT.md)"));
-    docLinks.appendChild(el("a", { href: "DOMAIN_ARASTIRMASI.md" }, "Domain Araştırması (DOMAIN_ARASTIRMASI.md)"));
+    docLinks.appendChild(el("a", { href: "PROTOTIP_VE_TAM_SURUM_PLANI.md" }, "Prototip & Tam Sürüm Planı (PROTOTIP_VE_TAM_SURUM_PLANI.md)"));
+    docLinks.appendChild(el("a", { href: "DOMAIN_ARASTIRMASI.md" }, "Domain & Marka Araştırması (DOMAIN_ARASTIRMASI.md)"));
     docLinks.appendChild(el("a", { href: "FREE_ASSET_VE_KIT_REHBERI.md" }, "Ücretsiz Kitler (FREE_ASSET_VE_KIT_REHBERI.md)"));
     docLinks.appendChild(el("a", { href: "GENEL_TEARDOWN_RAPORU.md" }, "Genel Rapor (GENEL_TEARDOWN_RAPORU.md)"));
     ideaBody.appendChild(docLinks);
   }
 
-  // Domain Research Panel
+  // Real-World & Famous Brand Visual Reference Gallery Panel
+  var domainRefsPanel = document.getElementById("domain-refs-panel");
+  var domainRefsOverview = document.getElementById("domain-refs-overview");
+  var domainRefsGrid = document.getElementById("domain-refs-grid");
+  var refCatFilter = document.getElementById("ref-cat-filter");
+  var refCatNames = {
+    anatomy_layers: "Anatomi / Katman",
+    how_its_made: "Nasıl Yapılır / Süreç",
+    real_world_equivalent: "Gerçek Hayat",
+    famous_brand: "Ünlü Marka"
+  };
+  var refCatBadgeClass = {
+    anatomy_layers: "gp",
+    how_its_made: "warn",
+    real_world_equivalent: "mode",
+    famous_brand: "ios"
+  };
+  function renderDomainRefs() {
+    domainRefsGrid.replaceChildren();
+    var cVal = refCatFilter.value;
+    domainRefs.filter(function (r) {
+      return r.downloaded && r.local_path && (cVal === "all" || r.category === cVal);
+    }).forEach(function (r) {
+      var rel = safeRelUrl(r.local_path);
+      if (!rel) return;
+      var card = el("div", { class: "ref-card" });
+      var img = el("img", { src: rel, alt: r.subject_label || r.title || "Reference", loading: "lazy" });
+      var cap = r.evidence_id + " · " + (r.subject_label || r.title || "") + " (" + (refCatNames[r.category] || r.category) + ")";
+      img.addEventListener("click", function () { openLightbox(rel, cap); });
+      card.appendChild(img);
+      card.appendChild(el("div", { class: "ref-title", title: r.subject_label || r.title }, r.subject_label || r.title));
+      var rb = el("div", { class: "badges" });
+      rb.appendChild(el("span", { class: "badge " + (refCatBadgeClass[r.category] || "") }, refCatNames[r.category] || r.category));
+      rb.appendChild(el("span", { class: "badge" }, r.evidence_id));
+      if (r.width && r.height) rb.appendChild(el("span", { class: "badge" }, r.width + "x" + r.height));
+      card.appendChild(rb);
+      if (Array.isArray(r.dominant_colors) && r.dominant_colors.length > 0) {
+        var swRow = el("div", { class: "swatches", style: { justifyContent: "flex-start" } });
+        r.dominant_colors.slice(0, 4).forEach(function (hx) {
+          if (/^#[0-9A-Fa-f]{6}$/.test(hx)) {
+            swRow.appendChild(el("span", { class: "swatch", title: hx, style: { backgroundColor: hx } }));
+          }
+        });
+        card.appendChild(swRow);
+      }
+      var ext = safeExternalUrl(r.page_url || r.source_url);
+      if (ext) {
+        card.appendChild(el("a", { href: ext, target: "_blank", rel: "noopener noreferrer" }, (r.domain || r.source_engine || "Kaynak") + " ↗"));
+      }
+      domainRefsGrid.appendChild(card);
+    });
+  }
+  if (domainRefs.length > 0) {
+    domainRefsPanel.classList.remove("hidden");
+    var sheetRel = safeRelUrl(runData.domain_reference_sheet_path || "");
+    if (sheetRel) {
+      var shImg = el("img", { src: sheetRel, alt: "Real-World Reference Moodboard", loading: "lazy" });
+      shImg.addEventListener("click", function () { openLightbox(sheetRel, "Gerçek Hayat & Ünlü Marka Moodboard Panosu"); });
+      domainRefsOverview.appendChild(shImg);
+    }
+    var domPalRel = safeRelUrl(runData.domain_palette_card_path || "");
+    if (domPalRel) {
+      var dpImg = el("img", { src: domPalRel, alt: "Real-World Subject Color Palette", loading: "lazy" });
+      dpImg.addEventListener("click", function () { openLightbox(domPalRel, "Gerçek Hayat Konu Renk Paleti"); });
+      domainRefsOverview.appendChild(dpImg);
+    }
+    refCatFilter.addEventListener("change", renderDomainRefs);
+    renderDomainRefs();
+  }
+
+  // Domain Research Text Evidence Panel
   var domainPanel = document.getElementById("domain-panel");
   var domainList = document.getElementById("domain-list");
+  var domCatNames = {
+    what_is_it: "Nedir",
+    how_its_made: "Nasıl Yapılır",
+    anatomy_layers: "Katman / Anatomi",
+    famous_brands: "Ünlü Markalar",
+    real_world_equivalent: "Gerçek Hayat",
+    general: "Genel"
+  };
   if (domainEv.length > 0) {
     domainPanel.classList.remove("hidden");
     domainEv.forEach(function (d) {
@@ -420,7 +555,8 @@ _DASHBOARD_JS = """/* App Teardown & Idea-to-Build Visual Studio — Safe DOM re
       } else {
         li.appendChild(el("span", null, "[" + d.evidence_id + "] " + (d.title || d.domain)));
       }
-      li.appendChild(el("span", { class: "app-sub" }, " (" + d.topic + ")"));
+      var metaLabel = " (" + (domCatNames[d.category] || d.category || "Konu") + " · " + (d.source_engine || d.domain || "") + ")";
+      li.appendChild(el("span", { class: "app-sub" }, metaLabel));
       if (d.snippet) li.appendChild(el("div", { class: "web-snippet" }, d.snippet));
       domainList.appendChild(li);
     });
@@ -708,8 +844,24 @@ def write_dashboard(run: TeardownRun, run_dir: Path) -> Path:
       <div id="idea-body"></div>
     </section>
 
+    <section class="panel hidden" id="domain-refs-panel">
+      <div class="controls">
+        <h2 style="margin:0;flex:1;">Gerçek Hayat &amp; Ünlü Marka Görsel Referansları (Moodboard)</h2>
+        <select id="ref-cat-filter" aria-label="Referans Kategorisi">
+          <option value="all">Tüm Referans Görselleri</option>
+          <option value="anatomy_layers">Katman / Anatomi</option>
+          <option value="how_its_made">Nasıl Yapılır / Süreç</option>
+          <option value="real_world_equivalent">Gerçek Hayat Karşılığı</option>
+          <option value="famous_brand">Ünlü Markalar</option>
+        </select>
+      </div>
+      <p class="disclaimer-note">Yalnızca görsel araştırma, katman/anatomi ve renk referansı içindir. Ünlü marka logolarını veya telifli fotoğrafları doğrudan kopyalama; özgün stilize varlıklar üret.</p>
+      <div class="ref-overview" id="domain-refs-overview"></div>
+      <div class="ref-grid" id="domain-refs-grid"></div>
+    </section>
+
     <section class="panel hidden" id="domain-panel">
-      <h2>Gerçek Dünya Domain / Konu Araştırması Kanıtları</h2>
+      <h2>Gerçek Dünya Domain / Konu Araştırması Kanıtları (Nedir, Nasıl Yapılır, Katmanlar, Ünlü Markalar)</h2>
       <ul class="web-list" id="domain-list"></ul>
     </section>
 

@@ -7,12 +7,21 @@ import json
 import logging
 import sys
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .asset_kit_finder import find_free_asset_kits
-from .config import DEFAULT_MAX_FRAMES, DEFAULT_MAX_VIDEO_SEC, DEFAULT_RESEARCH_DIR
-from .idea_planner import decompose_idea, research_domain_knowledge
+from .config import (
+    DEFAULT_MAX_DOMAIN_IMAGES,
+    DEFAULT_MAX_FRAMES,
+    DEFAULT_MAX_VIDEO_SEC,
+    DEFAULT_RESEARCH_DIR,
+)
+from .domain_researcher import harvest_domain_reference_images
+from .idea_planner import build_domain_image_queries, decompose_idea, research_domain_knowledge
+from .models import TeardownRun
 from .pipeline import analyze_single_video, rebuild_teardown_reports, run_teardown
+from .report_generator import write_domain_and_kits_reports
 from .store_discovery import discover_app_store, discover_google_play
 from .web_researcher import collect_competitor_web_evidence
 
@@ -48,11 +57,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_disc.add_argument("--json", action="store_true")
 
     # 3. teardown
-    p_td = sub.add_parser("teardown", help="Run full Idea-to-Build competitor teardown: store discovery, YouTube frames, palettes, domain research, free kits, reports & dashboard.")
-    p_td.add_argument("--idea", default="", help="User's app/game idea (auto-splits mechanic query vs domain topics)")
+    p_td = sub.add_parser("teardown", help="Run full Idea-to-Build competitor teardown: store discovery, YouTube frames, palettes, real-world domain & famous brand photo research, free kits, reports & dashboard.")
+    p_td.add_argument("--idea", default="", help="User's app/game idea (auto-splits mechanic query vs real-world subject & brand research)")
     p_td.add_argument("--tech", default="", help="Chosen tech stack (godot, unity, phaser, flutter, react-native, native)")
     p_td.add_argument("--theme", default="", help="Theme label for domain & free asset kit search (e.g. 'burger cooking food')")
+    p_td.add_argument("--subject", default="", help="Concrete real-world subject to research (e.g. 'hamburger', 'espresso coffee', 'luxury perfume')")
+    p_td.add_argument("--famous-brands", nargs="*", default=[], help="Famous real-world brands/products to research and download visual references for (e.g. \"McDonald's Big Mac\" \"Burger King Whopper\")")
     p_td.add_argument("--domain-topics", nargs="*", default=[], help="Custom real-world subject-matter research queries (e.g. 'hamburger layers order')")
+    p_td.add_argument("--no-domain-images", action="store_true", help="Skip downloading real-world & famous brand reference photos")
+    p_td.add_argument("--max-domain-images", type=int, default=DEFAULT_MAX_DOMAIN_IMAGES, help="Max real-world & famous brand reference photos to download (default: 12)")
     p_td.add_argument("--query", default="", help="Competitor mechanic/category query for store search")
     p_td.add_argument("--targets", nargs="*", default=[], help="Specific store URLs or app IDs")
     p_td.add_argument("--stores", default="both", help="google_play, apple_app_store, or both")
@@ -69,8 +82,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_td.add_argument("--out-dir", default="")
 
     # 4. research-domain
-    p_dom = sub.add_parser("research-domain", help="Research real-world domain/subject-matter knowledge (e.g. hamburger layers, cooking rules, habit psychology).")
-    p_dom.add_argument("topics", nargs="+", help="One or more domain research queries")
+    p_dom = sub.add_parser("research-domain", help="Research real-world subject matter (what it is, how it's made, layers/anatomy, famous brands) and optionally download visual reference photos.")
+    p_dom.add_argument("topics", nargs="*", help="One or more domain research queries (optional when --idea or --subject is given)")
+    p_dom.add_argument("--idea", default="", help="Free-text product idea to auto-derive real-world subject, famous brands, and image queries")
+    p_dom.add_argument("--subject", default="", help="Concrete real-world subject (e.g. 'hamburger', 'pizza', 'perfume')")
+    p_dom.add_argument("--brands", nargs="*", default=[], help="Famous real-world brands/icons to research and photograph")
+    p_dom.add_argument("--out-dir", default="", help="Output folder to save DOMAIN_ARASTIRMASI.md, downloaded reference photos, moodboard sheet, and palette card")
+    p_dom.add_argument("--max-images", type=int, default=DEFAULT_MAX_DOMAIN_IMAGES, help="Max visual reference photos to download when --out-dir is set")
+    p_dom.add_argument("--no-images", action="store_true", help="Skip downloading reference photos")
     p_dom.add_argument("--country", default="us")
     p_dom.add_argument("--lang", default="en")
     p_dom.add_argument("--out", default="", help="Optional JSON output file path")
@@ -127,9 +146,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Detected Mode: {brief.product_mode}")
             print(f"Competitor Benchmark Query (Mechanic Axis): {brief.mechanic_query}")
             print(f"Theme / Asset Axis: {brief.theme_label}")
+            print(f"Core Real-World Subject: {brief.core_subject}")
+            if brief.famous_brands:
+                print(f"Famous Real-World Brands to Study: {', '.join(brief.famous_brands)}")
             print("Domain Subject-Matter Topics:")
             for t in brief.domain_topics:
                 print(f"  - {t}")
+            if brief.image_queries:
+                print("Planned Visual Reference Photo Searches:")
+                for iq in brief.image_queries:
+                    print(f"  - [{iq.get('category', 'ref')}] {iq.get('label', '')}: {iq.get('query', '')}")
             print("\nRecommended Technology Options:")
             for idx, opt in enumerate(brief.tech_options, start=1):
                 rec = " [RECOMMENDED]" if opt.recommended else ""
@@ -174,25 +200,108 @@ def main(argv: list[str] | None = None) -> int:
             selected_tech=args.tech,
             domain_topics=args.domain_topics,
             theme_label=args.theme,
+            core_subject=args.subject,
+            famous_brands=args.famous_brands,
+            download_domain_images=not args.no_domain_images,
+            max_domain_images=args.max_domain_images,
         )
         print(json.dumps({
             "run_id": run.run_id,
             "output_dir": run.output_dir,
             "competitor_count": len(run.competitors),
             "domain_evidence_count": len(run.domain_evidence),
+            "domain_reference_images_count": len(run.domain_references),
+            "domain_reference_sheet": str(Path(run.output_dir) / run.domain_reference_sheet_path) if run.domain_reference_sheet_path else "",
+            "domain_palette_card": str(Path(run.output_dir) / run.domain_palette_card_path) if run.domain_palette_card_path else "",
             "free_asset_kits_count": len(run.free_asset_kits),
             "general_report": str(Path(run.output_dir) / "GENEL_TEARDOWN_RAPORU.md"),
             "domain_report": str(Path(run.output_dir) / "DOMAIN_ARASTIRMASI.md"),
             "free_kits_report": str(Path(run.output_dir) / "FREE_ASSET_VE_KIT_REHBERI.md"),
             "design_blueprint": str(Path(run.output_dir) / "TASARIM_BLUEPRINT.md"),
+            "prototype_plan": str(Path(run.output_dir) / "PROTOTIP_VE_TAM_SURUM_PLANI.md"),
             "dashboard_html": str(Path(run.output_dir) / "dashboard.html"),
             "cross_analysis": run.cross_analysis,
         }, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "research-domain":
-        items = research_domain_knowledge(args.topics, lang=args.lang, country=args.country)
-        payload = [i.__dict__ for i in items]
+        brief = None
+        if args.idea or args.subject or args.brands:
+            brief = decompose_idea(
+                idea=args.idea or args.subject,
+                explicit_domain_topics=args.topics or None,
+                explicit_subject=args.subject,
+                explicit_famous_brands=args.brands or None,
+            )
+        topics = list(args.topics) if args.topics else (brief.domain_topics if brief else [])
+        core_subject = (args.subject or (brief.core_subject if brief else "")).strip()
+        famous_brands = list(args.brands) if args.brands else (brief.famous_brands if brief else [])
+        if not topics and not core_subject:
+            parser.error("Provide positional topics, --idea, or --subject for research-domain.")
+
+        items = research_domain_knowledge(
+            topics,
+            lang=args.lang,
+            country=args.country,
+            core_subject=core_subject,
+            famous_brands=famous_brands,
+        )
+
+        refs = []
+        sheet_rel = ""
+        pal = []
+        pal_card_rel = ""
+        if args.out_dir:
+            out_dir_path = Path(args.out_dir).resolve()
+            out_dir_path.mkdir(parents=True, exist_ok=True)
+            if not args.no_images:
+                img_queries = (
+                    brief.image_queries
+                    if brief and brief.image_queries
+                    else build_domain_image_queries(core_subject or (topics[0] if topics else ""), famous_brands=famous_brands)
+                )
+                refs, sheet_rel, pal, pal_card_rel = harvest_domain_reference_images(
+                    image_queries=img_queries,
+                    run_dir=out_dir_path,
+                    subject_title=core_subject or (topics[0] if topics else "Domain"),
+                    max_images=args.max_images,
+                    lang=args.lang,
+                    country=args.country,
+                )
+            stub_run = TeardownRun(
+                run_id=out_dir_path.name,
+                campaign_name=core_subject or out_dir_path.name,
+                query=core_subject or (topics[0] if topics else ""),
+                product_mode=brief.product_mode if brief else "game",
+                stores=[],
+                country=args.country,
+                lang=args.lang,
+                limit_per_store=0,
+                max_video_sec=0,
+                max_frames=0,
+                created_at=datetime.now(tz=timezone.utc).isoformat(),
+                output_dir=str(out_dir_path),
+                idea_brief=brief,
+                domain_evidence=items,
+                domain_references=refs,
+                domain_reference_sheet_path=sheet_rel,
+                domain_palette=pal,
+                domain_palette_card_path=pal_card_rel,
+            )
+            write_domain_and_kits_reports(stub_run, out_dir_path)
+
+        payload = {
+            "core_subject": core_subject,
+            "famous_brands": famous_brands,
+            "evidence_count": len(items),
+            "reference_images_count": len(refs),
+            "reference_sheet": str(Path(args.out_dir).resolve() / sheet_rel) if (args.out_dir and sheet_rel) else "",
+            "palette_card": str(Path(args.out_dir).resolve() / pal_card_rel) if (args.out_dir and pal_card_rel) else "",
+            "domain_report": str(Path(args.out_dir).resolve() / "DOMAIN_ARASTIRMASI.md") if args.out_dir else "",
+            "domain_evidence": [i.__dict__ for i in items],
+            "domain_references": [r.__dict__ for r in refs],
+            "domain_palette": [asdict(s) for s in pal],
+        }
         if args.out:
             p = Path(args.out)
             p.parent.mkdir(parents=True, exist_ok=True)

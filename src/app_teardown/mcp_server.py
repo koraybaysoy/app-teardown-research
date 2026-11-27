@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -13,11 +14,19 @@ except ImportError:
     from mcp.server.fastmcp import FastMCP as _MCPServer  # type: ignore[no-redef]
 
 from .asset_kit_finder import find_free_asset_kits
-from .config import DEFAULT_MAX_FRAMES, DEFAULT_MAX_VIDEO_SEC, DEFAULT_RESEARCH_DIR
-from .idea_planner import decompose_idea, research_domain_knowledge
+from .config import (
+    DEFAULT_MAX_DOMAIN_IMAGES,
+    DEFAULT_MAX_FRAMES,
+    DEFAULT_MAX_VIDEO_SEC,
+    DEFAULT_RESEARCH_DIR,
+)
+from .domain_researcher import harvest_domain_reference_images
+from .idea_planner import build_domain_image_queries, decompose_idea, research_domain_knowledge
+from .models import TeardownRun
 from .pipeline import analyze_single_video, rebuild_teardown_reports, run_teardown
+from .report_generator import write_domain_and_kits_reports
 from .store_discovery import discover_app_store, discover_google_play
-from .utils import safe_join
+from .utils import safe_join, slugify
 from .web_researcher import collect_competitor_web_evidence
 
 mcp = _MCPServer("app-teardown-research")
@@ -62,6 +71,8 @@ def run_product_teardown(
     idea: str = "",
     selected_tech: str = "",
     theme_label: str = "",
+    core_subject: str = "",
+    famous_brands: list[str] | None = None,
     domain_topics: list[str] | None = None,
     targets: list[str] | None = None,
     stores: str = "both",
@@ -74,8 +85,10 @@ def run_product_teardown(
     max_frames: int = DEFAULT_MAX_FRAMES,
     download_videos: bool = True,
     run_web_research: bool = True,
+    download_domain_images: bool = True,
+    max_domain_images: int = DEFAULT_MAX_DOMAIN_IMAGES,
 ) -> dict[str, Any]:
-    """Run full Idea-to-Build teardown: mechanic-based top-5 competitor discovery, YouTube gameplay/walkthrough clips, hybrid keyframes, color palettes, domain subject research, free UI/model/SFX kits, reports, and dashboard.html."""
+    """Run full Idea-to-Build teardown: mechanic-based top-5 competitor discovery, YouTube gameplay/walkthrough clips, hybrid keyframes, color palettes, real-world domain & famous brand visual reference research, free UI/model/SFX kits, reports, and dashboard.html."""
     selected = (
         ["google_play", "apple_app_store"]
         if stores in ("both", "all")
@@ -98,12 +111,19 @@ def run_product_teardown(
         selected_tech=selected_tech,
         domain_topics=domain_topics,
         theme_label=theme_label,
+        core_subject=core_subject,
+        famous_brands=famous_brands,
+        download_domain_images=download_domain_images,
+        max_domain_images=max_domain_images,
     )
     return {
         "run_id": run.run_id,
         "output_dir": run.output_dir,
         "competitor_count": len(run.competitors),
         "domain_evidence_count": len(run.domain_evidence),
+        "domain_reference_images_count": len(run.domain_references),
+        "domain_reference_sheet": str(Path(run.output_dir) / run.domain_reference_sheet_path) if run.domain_reference_sheet_path else "",
+        "domain_palette_card": str(Path(run.output_dir) / run.domain_palette_card_path) if run.domain_palette_card_path else "",
         "free_asset_kits_count": len(run.free_asset_kits),
         "cross_analysis": run.cross_analysis,
         "competitors": [
@@ -128,19 +148,97 @@ def run_product_teardown(
         "domain_report": str(Path(run.output_dir) / "DOMAIN_ARASTIRMASI.md"),
         "free_kits_report": str(Path(run.output_dir) / "FREE_ASSET_VE_KIT_REHBERI.md"),
         "design_blueprint": str(Path(run.output_dir) / "TASARIM_BLUEPRINT.md"),
+        "prototype_plan": str(Path(run.output_dir) / "PROTOTIP_VE_TAM_SURUM_PLANI.md"),
         "dashboard_html": str(Path(run.output_dir) / "dashboard.html"),
     }
 
 
 @mcp.tool()
 def research_domain_subject(
-    topics: list[str],
+    topics: list[str] | None = None,
+    idea: str = "",
+    subject: str = "",
+    famous_brands: list[str] | None = None,
+    download_images: bool = True,
+    output_subfolder: str = "",
+    max_images: int = DEFAULT_MAX_DOMAIN_IMAGES,
     country: str = "us",
     lang: str = "en",
-) -> list[dict[str, Any]]:
-    """Research real-world domain/subject-matter knowledge behind the product (e.g. hamburger layer order, cooking stages, habit psychology)."""
-    items = research_domain_knowledge(topics, lang=lang, country=country)
-    return [i.__dict__ for i in items]
+) -> dict[str, Any]:
+    """Research real-world subject matter (what it is, how it is made, layers/anatomy, famous real-world brands) and download visual reference photos, moodboard contact sheet, and real-world HEX palette under teardowns/<output_subfolder>."""
+    brief = decompose_idea(
+        idea=idea or subject or (" ".join(topics or [])),
+        explicit_domain_topics=topics,
+        explicit_subject=subject,
+        explicit_famous_brands=famous_brands,
+    )
+    resolved_topics = list(topics) if topics else brief.domain_topics
+    resolved_subject = (subject or brief.core_subject).strip()
+    resolved_brands = list(famous_brands) if famous_brands else brief.famous_brands
+
+    items = research_domain_knowledge(
+        resolved_topics,
+        lang=lang,
+        country=country,
+        core_subject=resolved_subject,
+        famous_brands=resolved_brands,
+    )
+
+    refs = []
+    sheet_rel = ""
+    pal = []
+    pal_card_rel = ""
+    out_dir: Path | None = None
+
+    if download_images or output_subfolder:
+        folder_name = output_subfolder.strip() or f"domain_{slugify(resolved_subject or 'subject', 32)}"
+        out_dir = safe_join(DEFAULT_RESEARCH_DIR, folder_name)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        if download_images:
+            img_queries = brief.image_queries or build_domain_image_queries(resolved_subject, famous_brands=resolved_brands)
+            refs, sheet_rel, pal, pal_card_rel = harvest_domain_reference_images(
+                image_queries=img_queries,
+                run_dir=out_dir,
+                subject_title=resolved_subject,
+                max_images=max_images,
+                lang=lang,
+                country=country,
+            )
+        stub_run = TeardownRun(
+            run_id=out_dir.name,
+            campaign_name=resolved_subject or out_dir.name,
+            query=resolved_subject,
+            product_mode=brief.product_mode,
+            stores=[],
+            country=country,
+            lang=lang,
+            limit_per_store=0,
+            max_video_sec=0,
+            max_frames=0,
+            created_at=datetime.now(tz=timezone.utc).isoformat(),
+            output_dir=str(out_dir),
+            idea_brief=brief,
+            domain_evidence=items,
+            domain_references=refs,
+            domain_reference_sheet_path=sheet_rel,
+            domain_palette=pal,
+            domain_palette_card_path=pal_card_rel,
+        )
+        write_domain_and_kits_reports(stub_run, out_dir)
+
+    return {
+        "core_subject": resolved_subject,
+        "famous_brands": resolved_brands,
+        "output_dir": str(out_dir) if out_dir else "",
+        "domain_report": str(out_dir / "DOMAIN_ARASTIRMASI.md") if out_dir else "",
+        "reference_sheet": str(out_dir / sheet_rel) if (out_dir and sheet_rel) else "",
+        "palette_card": str(out_dir / pal_card_rel) if (out_dir and pal_card_rel) else "",
+        "evidence_count": len(items),
+        "reference_images_count": len(refs),
+        "domain_evidence": [i.__dict__ for i in items],
+        "domain_references": [r.__dict__ for r in refs],
+        "domain_palette": [asdict(s) for s in pal],
+    }
 
 
 @mcp.tool()

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-PACKAGE_VERSION = "1.1.0"
+PACKAGE_VERSION = "1.2.0"
 
 DEFAULT_RESEARCH_DIR = Path.cwd() / "teardowns"
 
@@ -13,18 +13,40 @@ DEFAULT_USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/131.0.0.0 Safari/537.36"
 )
+WIKIMEDIA_USER_AGENT = (
+    f"AppTeardownResearch/{PACKAGE_VERSION} "
+    "(https://github.com/koraybaysoy/app-teardown-research)"
+)
 
 REQUEST_TIMEOUT_SEC = 20
 DOWNLOAD_TIMEOUT_SEC = 30
 VIDEO_TIMEOUT_SEC = 180
 MAX_DOWNLOAD_WORKERS = 6
 
-MAX_IMAGE_BYTES = 20 * 1024 * 1024       # 20 MB per image
+MAX_IMAGE_BYTES = 20 * 1024 * 1024       # 20 MB per store image
+MAX_REFERENCE_IMAGE_BYTES = 12 * 1024 * 1024  # 12 MB per real-world reference photo
+MIN_REFERENCE_IMAGE_DIM = 120            # Reject tiny icons / tracking spacers
+DEFAULT_MAX_DOMAIN_IMAGES = 12           # Default downloaded real-world & brand reference photos
 MAX_VIDEO_BYTES = 180 * 1024 * 1024      # 180 MB cap per gameplay video
 DEFAULT_MAX_VIDEO_SEC = 240              # First 4 minutes (FTUE + core loop + early monetization)
 DEFAULT_MAX_FRAMES = 24                  # Hybrid scene-change + interval frames per video
 DEFAULT_SCENE_THRESHOLD = 0.28           # FFmpeg scene detection delta threshold
 DEFAULT_MIN_FRAME_GAP_SEC = 3.5          # Minimum spacing between extracted frames
+
+# Watermarked stock domains deprioritized in favor of official brand & clean editorial/CC photography
+WATERMARKED_STOCK_DOMAINS: frozenset[str] = frozenset({
+    "shutterstock.com",
+    "dreamstime.com",
+    "istockphoto.com",
+    "gettyimages.com",
+    "alamy.com",
+    "123rf.com",
+    "depositphotos.com",
+    "vecteezy.com",
+    "stock.adobe.com",
+    "ftcdn.net",
+    "bigstockphoto.com",
+})
 
 # Strict CDN/store allowlist for binary asset & store API downloads (SSRF defense)
 ALLOWED_ASSET_HOST_SUFFIXES: tuple[str, ...] = (

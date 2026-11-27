@@ -26,7 +26,10 @@ class IdeaBrief:
     product_mode: str = "game"  # game | app
     mechanic_query: str = ""    # Used for store competitor benchmarking (e.g. "hypercasual gate runner")
     theme_label: str = ""       # Used for free asset kit & domain search (e.g. "burger cooking food")
+    core_subject: str = ""      # Concrete real-world subject (e.g. "hamburger", "espresso coffee", "luxury perfume")
+    famous_brands: list[str] = field(default_factory=list)  # Real-world iconic brands/products to benchmark visually
     domain_topics: list[str] = field(default_factory=list)  # Subject-matter research queries
+    image_queries: list[dict[str, str]] = field(default_factory=list)  # Structured visual reference search specs
     selected_tech: str = ""     # Chosen tech stack ID (e.g. "godot", "unity", "flutter")
     tech_options: list[TechStackOption] = field(default_factory=list)
 
@@ -41,6 +44,30 @@ class DomainEvidenceItem:
     domain: str = ""
     snippet: str = ""
     fetched_at: str = ""
+    category: str = "general"   # what_is_it | how_its_made | anatomy_layers | famous_brands | real_world_equivalent | general
+    source_engine: str = "duckduckgo"  # wikipedia | duckduckgo | web_search
+
+
+@dataclass
+class DomainReferenceImage:
+    evidence_id: str = ""       # EV-REF-01
+    category: str = "real_world_equivalent"  # anatomy_layers | how_its_made | real_world_equivalent | famous_brand
+    subject_label: str = ""     # e.g. "McDonald's Big Mac", "Hamburger Layers Anatomy"
+    query: str = ""
+    title: str = ""
+    source_engine: str = ""     # bing_images | wikimedia_commons | wikipedia | openverse
+    source_url: str = ""        # Direct image URL downloaded
+    page_url: str = ""          # Originating web page citation URL
+    domain: str = ""
+    license_note: str = "Visual reference only (verify rights; do not copy trademarked logos or brand photography)"
+    local_path: str = ""        # Relative to run_dir
+    width: int = 0
+    height: int = 0
+    image_format: str = ""
+    file_size_bytes: int = 0
+    dominant_colors: list[str] = field(default_factory=list)
+    downloaded: bool = False
+    error: str = ""
 
 
 @dataclass
@@ -239,6 +266,10 @@ class TeardownRun:
     output_dir: str
     idea_brief: IdeaBrief | None = None
     domain_evidence: list[DomainEvidenceItem] = field(default_factory=list)
+    domain_references: list[DomainReferenceImage] = field(default_factory=list)
+    domain_reference_sheet_path: str = ""
+    domain_palette: list[ColorSwatch] = field(default_factory=list)
+    domain_palette_card_path: str = ""
     free_asset_kits: list[AssetKitItem] = field(default_factory=list)
     competitors: list[CompetitorRecord] = field(default_factory=list)
     cross_analysis: dict[str, Any] = field(default_factory=dict)

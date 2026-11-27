@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -265,49 +266,146 @@ def write_domain_and_kits_reports(run: TeardownRun, run_dir: Path) -> None:
     ev_dir = safe_join(run_dir, "evidence")
     ev_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Domain / Subject-Matter Research
+    brief = run.idea_brief
+    idea_text = brief.raw_idea if brief and brief.raw_idea else (run.query or run.campaign_name)
+    theme_text = brief.theme_label if brief and brief.theme_label else run.query
+    subject_text = (brief.core_subject if brief and brief.core_subject else theme_text) or run.campaign_name
+    brands_list = brief.famous_brands if brief and brief.famous_brands else []
+    topics_list = brief.domain_topics if brief else []
+
+    # 1. Domain / Subject-Matter Research & Visual Reference Ledger JSONs
     safe_join(ev_dir, "domain_sources.json").write_text(
         json.dumps([d.__dict__ for d in run.domain_evidence], ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    safe_join(ev_dir, "domain_references.json").write_text(
+        json.dumps({
+            "core_subject": subject_text,
+            "famous_brands": brands_list,
+            "reference_sheet_path": run.domain_reference_sheet_path,
+            "palette_card_path": run.domain_palette_card_path,
+            "domain_palette": [asdict(s) for s in run.domain_palette],
+            "references": [r.__dict__ for r in run.domain_references],
+        }, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
-    brief = run.idea_brief
-    idea_text = brief.raw_idea if brief and brief.raw_idea else (run.query or run.campaign_name)
-    theme_text = brief.theme_label if brief and brief.theme_label else run.query
-    topics_list = brief.domain_topics if brief else []
+    ref_cat_labels = {
+        "anatomy_layers": "Katman / Anatomi",
+        "how_its_made": "Nasıl Yapılır / Süreç",
+        "real_world_equivalent": "Gerçek Hayat Karşılığı",
+        "famous_brand": "Ünlü Marka Referansı",
+    }
 
-    dom_blocks: list[str] = []
-    for item in run.domain_evidence:
-        dom_blocks.append(
-            f"### [{item.evidence_id}] {item.title}\n"
-            f"- **Konu / Sorgu:** `{item.topic}`\n"
-            f"- **Kaynak:** `{item.domain}` | **URL:** {item.url}\n"
-            f"- **Özet:** {item.snippet or '-'}\n"
+    ref_rows: list[str] = []
+    for ref in run.domain_references:
+        cat_lbl = ref_cat_labels.get(ref.category, ref.category)
+        dims = f"{ref.width}x{ref.height}" if ref.width and ref.height else "-"
+        hex_str = " ".join(f"`{h}`" for h in ref.dominant_colors[:3]) or "-"
+        src_link = f"[{ref.domain or ref.source_engine}]({ref.page_url or ref.source_url})" if (ref.page_url or ref.source_url) else "-"
+        local_cell = f"`{ref.local_path}`" if ref.local_path else "-"
+        lbl = (ref.subject_label or ref.title or "-").replace("|", "/")
+        ref_rows.append(
+            f"| `{ref.evidence_id}` | {cat_lbl} | **{lbl}** | {dims} | {hex_str} | {src_link} (`{ref.source_engine}`) | {local_cell} |"
         )
-    if not dom_blocks:
-        dom_blocks.append(
-            "_Otomatik domain araması boş döndü veya konu belirtilmedi. Ajan, canlı `search_web` aracıyla ürün temasının gerçek dünya kurallarını (ör. hamburger katman dizilimi, pişirme aşamaları, tarif/içerik kombinasyonları) araştırıp aşağıya işler._"
+    if not ref_rows:
+        ref_rows.append("| - | - | Referans görseli indirilmedi (`--no-domain-images` veya ağ kısıtı). | - | - | - | - |")
+
+    domain_palette_rows = [
+        f"| `{s.hex}` | `rgb{s.rgb}` | {s.ratio_pct:.1f}% | {s.luminance:.2f} | {s.temperature} |"
+        for s in run.domain_palette
+    ] or ["| - | - | - | - | - |"]
+
+    dom_cat_order = [
+        ("what_is_it", "2.1 Nedir & Gerçek Hayat Karşılığı"),
+        ("real_world_equivalent", "2.2 Gerçek Dünya Bağlamı & Kullanım"),
+        ("how_its_made", "2.3 Nasıl Yapılır? Adım Adım Üretim / Hazırlama Süreci"),
+        ("anatomy_layers", "2.4 Katmanlar, Parçalar & Anatomi Sırası"),
+        ("famous_brands", "2.5 Ünlü Gerçek Hayat Markaları & İkonik Örnekler"),
+        ("general", "2.6 Ek Konu Kaynakları"),
+    ]
+    dom_sections: list[str] = []
+    matched_ids: set[str] = set()
+    for cat_key, heading in dom_cat_order:
+        subset = [d for d in run.domain_evidence if (d.category or "general") == cat_key]
+        if not subset:
+            continue
+        dom_sections.append(f"### {heading}\n")
+        for item in subset:
+            matched_ids.add(item.evidence_id)
+            dom_sections.append(
+                f"#### [{item.evidence_id}] {item.title}\n"
+                f"- **Konu / Sorgu:** `{item.topic}` | **Motor:** `{item.source_engine}`\n"
+                f"- **Kaynak:** `{item.domain}` | **URL:** {item.url}\n"
+                f"- **Özet:** {item.snippet or '-'}\n"
+            )
+    # Catch any custom category
+    leftovers = [d for d in run.domain_evidence if d.evidence_id not in matched_ids]
+    if leftovers:
+        dom_sections.append("### 2.7 Diğer Kaynaklar\n")
+        for item in leftovers:
+            dom_sections.append(
+                f"#### [{item.evidence_id}] {item.title}\n"
+                f"- **Konu / Sorgu:** `{item.topic}`\n"
+                f"- **Kaynak:** `{item.domain}` | **URL:** {item.url}\n"
+                f"- **Özet:** {item.snippet or '-'}\n"
+            )
+
+    if not dom_sections:
+        dom_sections.append(
+            "_Otomatik domain araması boş döndü veya konu belirtilmedi. Ajan, canlı `search_web` aracıyla ürün temasının gerçek dünya tanımını, yapım aşamalarını, katman/parça sırasını ve ünlü markalarını araştırıp aşağıya işler._"
         )
 
-    domain_md = f"""# Alan & Konu (Domain) Araştırması: {theme_text}
+    domain_md = f"""# Alan, Gerçek Hayat & Görsel Referans (Domain) Araştırması: {subject_text}
 
-Bu doküman, rakip uygulama analizinden ayrı olarak tasarlanacak ürünün **gerçek dünya konu bilgisini** inceler. (Örneğin: kapılı yemek yapma oyununda hamburger katman sırası, pişirme evreleri, müşteri sipariş çeşitleri; alışkanlık uygulamasında davranış psikolojisi kuralları.)
+Bu doküman, rakip uygulama analizinden ayrı olarak tasarlanacak fikrin **gerçek hayattaki karşılığını** derinlemesine inceler: **nedir, nasıl yapılır, hangi katman/parçalardan oluşur, ünlü gerçek hayat markaları bunu nasıl sunar ve görsel olarak nasıl görünür?**
 
 - **Kullanıcı Fikri:** {idea_text}
+- **Gerçek Hayat Ana Konusu (Core Subject):** `{subject_text}`
+- **Tema / Asset Ekseni:** `{theme_text}`
+- **İncelenen Ünlü Gerçek Hayat Markaları:** {", ".join(f"`{b}`" for b in brands_list) or "-"}
 - **Rakip Mekanik Sorgusu (Kategori Ekseni):** `{brief.mechanic_query if brief else run.query}`
-- **Araştırılan Domain Başlıkları (Tema Ekseni):** {", ".join(f"`{t}`" for t in topics_list) or "-"}
+- **Araştırılan Domain Başlıkları:** {", ".join(f"`{t}`" for t in topics_list) or "-"}
+- **İndirilen Görsel Referans Sayısı:** **{len(run.domain_references)}** (`evidence/domain_references.json`)
+- **Görsel Moodboard Panosu:** `{run.domain_reference_sheet_path or "-"}`
+- **Gerçek Hayat Renk Kartelası:** `{run.domain_palette_card_path or "-"}`
 
-## Toplanan Web Kanıtları ({len(run.domain_evidence)} kaynak)
+> **Telif & Marka Uyarısı:** İndirilen gerçek hayat ve ünlü marka fotoğrafları (`EV-REF-XX`) yalnızca **görsel inceleme, katman/anatomi, silüet, oran ve renk referansı** amacıyla arşivlenir. Ünlü markaların logolarını, ambalajlarını veya telifli fotoğraflarını oyuna/uygulamaya doğrudan kopyalama; her zaman özgün stilize varlıklar üret.
 
-{chr(10).join(dom_blocks)}
+## 1. İndirilen Gerçek Hayat & Ünlü Marka Referans Görselleri (`EV-REF-XX`)
+
+| Evidence ID | Kategori | Konu / Marka | Boyut | Baskın Renkler | Kaynak | Lokal Dosya |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+{chr(10).join(ref_rows)}
+
+### Gerçek Hayat Referans Renk Paleti (HEX Kanıt Tablosu)
+| HEX | RGB | Baskınlık | Parlaklık (0-1) | Sıcaklık |
+| :--- | :--- | ---: | ---: | :--- |
+{chr(10).join(domain_palette_rows)}
+
+## 2. Toplanan Gerçek Dünya Bilgi Kanıtları ({len(run.domain_evidence)} kaynak)
+
+{chr(10).join(dom_sections)}
 
 <!-- AGENT_DOMAIN_SYNTHESIS_START -->
-## Ajan Domain Sentezi & Oyun/Uygulama İçerik Kuralları
+## 3. Ajan Domain Sentezi: Gerçek Hayattan Oyun / Uygulama Tasarımına
 
-> **Ajan Talimatı:** Yukarıdaki kanıtları ve gerekirse ek canlı `search_web` sonuçlarını birleştirerek oyunun veya uygulamanın konu mantığını somutlaştır:
-> - **Gerçek Dünya Anatomisi / Sıralama Kuralları:** *(Örn. Hamburger katman sırası: Alt ekmek -> Sos -> Marul -> Köfte -> Peynir -> Domates -> Turşu -> Üst ekmek; yanlış/eksik katman veya yanık köfte puan kuralı.)*
-> - **İçerik / Seviye Çeşitlendirme Tablosu:** *(Başlangıç -> Orta -> İleri seviye yeni malzeme, tarif veya özellik açılış sırası.)*
-> - **Görsel & İşitsel Gerçekçilik İpuçları:** *(Kullanıcının anında tanımasını sağlayan silüet, renk ve ses ipuçları.)*
+> **Ajan Talimatı:** Önce `{run.domain_reference_sheet_path or "assets/domain_references/domain_reference_sheet.png"}`, `{run.domain_palette_card_path or "assets/domain_references/domain_palette_card.png"}` ve kritik `EV-REF-XX` referans görsellerini `read_file` ile bizzat incele. Ardından yukarıdaki `EV-DOM-XX` kaynakları ve gerekirse canlı `search_web` sonuçlarıyla aşağıdaki 5 başlığı somut kanıt ID'leriyle doldur:
+
+### 3.1 Nedir ve Gerçek Hayatta Neye Denk Gelir?
+- *(Ürünün gerçek dünyadaki tanımı, kullanıcının zihnindeki hazır beklenti ve oyunda/uygulamada hangi somut gerçek deneyimi simüle ettiği.)*
+
+### 3.2 Nasıl Yapılır? Adım Adım Gerçek Süreç -> Oyun/Uygulama Akışı
+- *(Gerçek dünyadaki hazırlama/üretim aşamalarının — ör. köfte pişirme, peynir eritme, sos sürme, istifleme veya demleme/harmanlama — doğrudan oyun fazlarına veya uygulama adımlarına eşleşmesi.)*
+
+### 3.3 Katmanlar, Parçalar & Anatomi Sırası
+- *(Örn. Hamburger katman sırası: Alt ekmek -> Sos -> Marul bariyeri -> Köfte -> Eritilmiş peynir -> Domates -> Turşu -> Soğan -> Üst susamlı ekmek; yanlış/eksik katman veya pişme derecesi puan kuralı.)*
+
+### 3.4 Ünlü Markalar İncelemesi (`EV-REF-XX` Görsel Gözlemleri)
+- *(İndirilen ünlü marka fotoğraflarından çıkarılan somut görsel ipuçları: ör. Big Mac üç katlı ekmek ve orta katman silüeti, Whopper ızgara izi ve geniş çap, Shake Shack brioche parlaklığı ve eriyen peynir sarkması — telif ihlali yapmadan özgün stilize oyuna uyarlanacak görsel prensipler.)*
+
+### 3.5 İçerik İlerleme Tablosu & Görsel/İşitsel Gerçekçilik İpuçları
+- *(Başlangıç -> Orta -> İleri seviye yeni malzeme/tarif/katman açılış sırası + gerçek hayat renk paleti, doku/parıltı ve foley ses ipuçları.)*
 <!-- AGENT_DOMAIN_SYNTHESIS_END -->
 """
     safe_join(run_dir, "DOMAIN_ARASTIRMASI.md").write_text(domain_md, encoding="utf-8")
@@ -387,7 +485,12 @@ def write_campaign_reports(run: TeardownRun, run_dir: Path) -> None:
             "idea": brief.raw_idea if brief else "",
             "selected_tech": brief.selected_tech if brief else "",
             "theme_label": brief.theme_label if brief else "",
+            "core_subject": brief.core_subject if brief else "",
+            "famous_brands": brief.famous_brands if brief else [],
             "domain_topics": brief.domain_topics if brief else [],
+            "domain_reference_images_count": len(run.domain_references),
+            "domain_reference_sheet_path": run.domain_reference_sheet_path,
+            "domain_palette_card_path": run.domain_palette_card_path,
         }, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
@@ -441,8 +544,8 @@ def write_campaign_reports(run: TeardownRun, run_dir: Path) -> None:
 - **Seçilen Teknoloji:** `{brief.selected_tech if brief and brief.selected_tech else "Belirtilmedi"}`
 - **Rakip Mekanik Sorgusu:** `{run.query or "Direct Targets"}`
 - **Bölge / Dil:** `{run.country.upper()} / {run.lang}` | **Baskın Mod:** `{ca.get("dominant_mode", run.product_mode)}`
-- **Analiz Edilen Rakip:** **{len(comps)}** | **Toplam Video Karesi:** **{ca.get("total_gameplay_frames", 0)}** | **Web Kanıtı:** **{ca.get("total_web_evidence_sources", 0)}** | **Domain Kanıtı:** **{len(run.domain_evidence)}** | **Ücretsiz Kit:** **{len(run.free_asset_kits)}**
-- **İlgili Raporlar:** `DOMAIN_ARASTIRMASI.md` | `FREE_ASSET_VE_KIT_REHBERI.md` | `TASARIM_BLUEPRINT.md` | `dashboard.html`
+- **Analiz Edilen Rakip:** **{len(comps)}** | **Toplam Video Karesi:** **{ca.get("total_gameplay_frames", 0)}** | **Web Kanıtı:** **{ca.get("total_web_evidence_sources", 0)}** | **Domain Kanıtı:** **{len(run.domain_evidence)}** | **Gerçek Hayat / Marka Referans Görseli:** **{len(run.domain_references)}** | **Ücretsiz Kit:** **{len(run.free_asset_kits)}**
+- **İlgili Raporlar:** `DOMAIN_ARASTIRMASI.md` | `FREE_ASSET_VE_KIT_REHBERI.md` | `TASARIM_BLUEPRINT.md` | `PROTOTIP_VE_TAM_SURUM_PLANI.md` | `dashboard.html`{f" | `{run.domain_reference_sheet_path}`" if run.domain_reference_sheet_path else ""}
 
 ## 1. Rakip Karşılaştırma Matrisi
 | Uygulama / Oyun | Mağaza | Mod | Puan & Hacim | Gelir Modeli | Kare Kanıtı | Web Kanıtı | Baskın Palet | Kanıt Skoru |
@@ -504,7 +607,9 @@ Bu doküman; incelenen **{len(comps)} popüler rakibin** mağaza verileri, YouTu
 ## 0. Fikir, Araştırma Ayrımı & Teknoloji Kararı
 - **Ham Ürün Fikri:** {brief.raw_idea if brief and brief.raw_idea else (run.query or run.campaign_name)}
 - **Rakip Benchmark Ekseni (Mekanik):** `{brief.mechanic_query if brief else run.query}`
-- **Domain & Tema Ekseni (Konu Bilgisi):** `{brief.theme_label if brief else "-"}`
+- **Gerçek Hayat Ana Konusu (Subject):** `{brief.core_subject if brief and brief.core_subject else (brief.theme_label if brief else "-")}`
+- **İncelenen Ünlü Gerçek Hayat Markaları:** {", ".join(f"`{b}`" for b in (brief.famous_brands if brief else [])) or "-"}
+- **Gerçek Hayat Görsel Referans Panosu:** `{run.domain_reference_sheet_path or "-"}` ({len(run.domain_references)} fotoğraf) | **Gerçek Hayat Renk Kartelası:** `{run.domain_palette_card_path or "-"}`
 
 {tech_block}
 
@@ -514,8 +619,10 @@ Bu doküman; incelenen **{len(comps)} popüler rakibin** mağaza verileri, YouTu
 - **Rakiplerin Ortak Zayıf Noktaları (Bizim Avantajımız):** {", ".join(ca.get("shared_ux_frictions", {}).keys()) or "(Ajan incelemesi sonrası doldurulacak)"}
 - **Tek Cümlelik Ürün Vaadi:** *(Ajan, kullanıcının fikrine ve rakip boşluklarına göre doldurur.)*
 
-## 2. Domain Kuralları & İçerik Tasarımı (`DOMAIN_ARASTIRMASI.md` Kaynaklı)
-- **Gerçek Dünya Mantığı & Katman/Akış Kuralları:** *(Örn. hamburger katman dizilimi, doğru/yanlış kapı etkileri, sipariş eşleştirme puanı veya uygulama konu kuralları.)*
+## 2. Gerçek Hayat Konusu, Domain Kuralları & Marka Referansları (`DOMAIN_ARASTIRMASI.md` + `EV-REF-XX`)
+- **Nedir & Gerçek Hayat Karşılığı:** *(Ürünün gerçek dünyadaki tanımı ve hangi somut gerçek deneyime denk geldiği.)*
+- **Nasıl Yapılır? Süreç & Katman/Anatomi Kuralları:** *(Örn. hamburger katman dizilimi, pişirme evreleri, doğru/yanlış kapı etkileri, sipariş eşleştirme puanı veya uygulama konu kuralları.)*
+- **Ünlü Markalardan Çıkarılan Özgün Görsel İpuçları:** *(İndirilen `EV-REF-XX` marka fotoğraflarından öğrenilen silüet, katman görünürlüğü, doku ve sunum prensipleri; marka telifini kopyalamadan özgün stilize uyarlama.)*
 - **İçerik İlerleme Tablosu (Seviye 1 -> Seviye 20+):**
 
 ## 3. Çekirdek Döngü (Core Loop), Mekanikler & MVP Kapsamı
@@ -530,7 +637,8 @@ Bu doküman; incelenen **{len(comps)} popüler rakibin** mağaza verileri, YouTu
 - **Ekran Akışı (Splash -> Onboarding -> Core Screen -> Reward/Result -> Shop/Paywall -> Meta):**
 
 ## 5. Renk Paleti & Görsel Tasarım Sistemi
-- **Kategorideki Mevcut Renk Yoğunlaşması:** {", ".join(f"`{h}`" for h in ca.get("sample_dominant_hexes", [])[:6]) or "-"}
+- **Rakip Kategorideki Mevcut Renk Yoğunlaşması:** {", ".join(f"`{h}`" for h in ca.get("sample_dominant_hexes", [])[:6]) or "-"}
+- **Gerçek Hayat Konu / Marka Referans Paleti:** {", ".join(f"`{s.hex}`" for s in run.domain_palette[:6]) or "-"}
 - **Önerilen Ayrışma Paleti (Primary / Secondary / Accent / Surface / Danger / Reward HEX Tokenları):**
 
 ## 6. Ücretsiz UI/UX, 3D/2D Model, Ses & Eklenti Reçetesi (`FREE_ASSET_VE_KIT_REHBERI.md`)
@@ -548,10 +656,113 @@ Bu doküman; incelenen **{len(comps)} popüler rakibin** mağaza verileri, YouTu
 - **D30 (Uzun Vadeli Meta & Live-Ops / Alışkanlık Döngüsü):**
 
 ## 9. Seçilen Teknolojiye Özel Uygulama Yol Haritası (Sprint Planı)
-- **Sprint 1 (Gri Kutu Prototip & Core Loop):**
+- **Sprint 1 (Hızlı Çalışan Prototip & Core Loop):** *(Ayrıntılar ve kullanıcı geri bildirim kapısı için `PROTOTIP_VE_TAM_SURUM_PLANI.md` dosyasına bak.)*
 - **Sprint 2 (Domain İçeriği, Ücretsiz 3D/2D Modeller & HUD/UI Kit Entegrasyonu):**
 - **Sprint 3 (Game Feel/Juice, Ücretsiz SFX/Ses Katmanı & Seviye Dengeleme):**
 - **Sprint 4 (Reklam/IAP SDK Entegrasyonu, Telemetri & Mağaza Yayın Hazırlığı):**
 <!-- AGENT_BLUEPRINT_END -->
 """
     safe_join(run_dir, "TASARIM_BLUEPRINT.md").write_text(blueprint_md, encoding="utf-8")
+
+    # 6. PROTOTIP_VE_TAM_SURUM_PLANI.md (Prototype Gate -> Feedback Loop -> Full-Version Build Blueprint)
+    resolved_mode = str(ca.get("dominant_mode") or run.product_mode or "game")
+    tech_name = tech_prof.name if tech_prof else (brief.selected_tech.upper() if brief and brief.selected_tech else "Seçilen Teknoloji")
+    subject_label = brief.core_subject if brief and brief.core_subject else (brief.theme_label if brief and brief.theme_label else run.query or run.campaign_name)
+
+    if resolved_mode == "game":
+        proto_scope_bullets = (
+            "- **Giriş / Başlık Ekranı:** Oyun adı, tek dokunuşla `Oyna` CTA butonu ve blueprint HEX renk teması.\n"
+            "- **1 Oynanabilir Çekirdek Döngü Sahnesi (Vertical Slice):** Temel kontrol (dokun/sürükle), çekirdek mekanik (ör. kapılardan geçme / üretim / eşleştirme) ve gerçek hayat domain kuralının çalışan 1 seviyesi.\n"
+            "- **Temel HUD & Geri Bildirim:** Puan/ilerleme sayacı, basit doğru/yanlış aksiyon geri bildirimi ve bölüm sonu Kazanma / Tekrar Oyna ekranı.\n"
+            "- **Hızlı Görsel Temsil:** Ağır 3D/2D sanat yerine temiz stilize temel şekiller veya 1-2 ücretsiz starter kit modeli ile mekanik hissinin anında test edilmesi."
+        )
+        delta_rows = (
+            "| Çekirdek Oynanış & Bölümler | 1 oynanabilir örnek bölüm + temel mekanik döngü | 20+ dengeli seviye, zorluk eğrisi, yeni engel/kapı/sipariş çeşitleri ve boss/bonus turları |\n"
+            "| Gerçek Hayat Domain İçeriği | Temel katman/süreç kuralının sade gösterimi | `DOMAIN_ARASTIRMASI.md` ve `EV-REF-XX` tabanlı tüm katmanlar, tarifler, nadir malzemeler ve özgün marka ilhamlı çeşitlilik |\n"
+            "| Görsel Sanat, UI/UX & Animasyon | Temiz prototip şekilleri + blueprint HEX iskeleti | `FREE_ASSET_VE_KIT_REHBERI.md` (`EV-KIT-XX`) 3D/2D modelleri, parlatılmış Safe-Area HUD, parçacık efektleri, shader ve ekran geçişleri |\n"
+            "| Game Feel (Juice) & Ses/Foley | Temel hareket ve basit görsel tepki | Squash & stretch, kamera sarsıntısı, hit-stop, foley SFX (ızgara/pop/kasa/fanfar) ve dinamik ses miksajı |\n"
+            "| Monetizasyon (Reklam & IAP) | Yok (yalnızca yer tutucu alan) | Rewarded video (2x ödül/devam), dengeli interstitial kadansı, Remove-Ads / Starter / VIP IAP veya mağaza vitrini |\n"
+            "| Retention & Kalıcılık | Oturum içi geçici skor | Yerel/bulut Save-Load, günlük ödül/görev/streak, meta-progression (yükseltme/dükkan/koleksiyon) |\n"
+            "| QA, Performans & Yayın | Lokal çalıştırma ve temel akış testi | 60 FPS optimizasyonu, çoklu ekran oranı/Safe-Area QA, otomatik testler, ikon ve mağaza build paketi |"
+        )
+    else:
+        proto_scope_bullets = (
+            "- **Kısa Onboarding & Karşılama:** Uygulamanın tek cümlelik değer vaadi ve ilk aksiyona 15 saniyede geçiş.\n"
+            "- **Ana Ekran & Temel Navigasyon:** Blueprint HEX tasarım sistemi, alt tab bar / navigasyon iskeleti ve başparmak bölgesinde ana CTA.\n"
+            "- **1 Çalışan Çekirdek Kullanıcı Akışı:** Gerçek etkileşimli yerel state ile ana görev/kayıt/hesaplama/takip akışının baştan sona çalışması.\n"
+            "- **Örnek Sonuç & Paywall Önizlemesi:** Kullanıcı akışı tamamlandığında görünen özet/ilerleme ekranı ve planlanan abonelik ekranı maketi (gerçek ödeme bağlı olmadan)."
+        )
+        delta_rows = (
+            "| Çekirdek Kullanıcı Akışı | 1 ana etkileşimli akış + yerel geçici veri | Tüm ekranlar, uç durumlar (boş durum, hata, yükleme), arama/filtreleme ve tam domain hesaplama kuralları |\n"
+            "| Gerçek Hayat Domain Mantığı | Temel kural ve hesaplama örneği | `DOMAIN_ARASTIRMASI.md` kaynaklı tüm bilimsel/pratik akışlar, kişiselleştirme ve akıllı öneriler |\n"
+            "| Görsel Tasarım Sistemi & UI/UX | Blueprint HEX token'ları + temel bileşenler | Tam tasarım sistemi, mikro animasyonlar (Lottie/Rive), karanlık/aydınlık mod, Safe-Area ve erişilebilirlik |\n"
+            "| Bildirim & Alışkanlık Döngüsü | Mock önizleme | Yerel/push hatırlatıcılar, streak kurtarma, haftalık özet raporları ve widget desteği |\n"
+            "| Gelir & Paywall Mimarisi | Tıklanabilir paywall ekranı maketi | RevenueCat / StoreKit / Play Billing entegrasyonu, ücretsiz deneme, fiyat çıpalama ve değer anı tetikleyicileri |\n"
+            "| Veri Kalıcılığı & Hesap | Bellek içi / basit lokal kayıt | Güvenli kalıcı veritabanı, yedekleme/senkronizasyon, gizlilik/ayar ekranları |\n"
+            "| QA, Performans & Yayın | Lokal çalıştırma ve temel smoke test | Birim/widget testleri, çoklu cihaz yerleşim QA'i, hata yakalama ve iOS/Android mağaza yayın paketi |"
+        )
+
+    proto_md = f"""# Prototip & Tam Sürüm Yol Haritası (Geri Bildirim Kapısı): {run.campaign_name}
+
+Bu doküman, araştırma ve tasarım raporları tamamlandıktan sonra **hızlı çalışan prototip -> kullanıcı geri bildirimi -> tam sürüm uçtan uca geliştirme** akışını yönetir.
+
+- **Proje Fikri:** {brief.raw_idea if brief and brief.raw_idea else (run.query or run.campaign_name)}
+- **Seçilen Teknoloji:** `{tech_name}`
+- **Ürün Modu:** `{resolved_mode}` | **Gerçek Hayat Konusu:** `{subject_label}`
+- **İlgili Raporlar:** `GENEL_TEARDOWN_RAPORU.md` | `DOMAIN_ARASTIRMASI.md` | `FREE_ASSET_VE_KIT_REHBERI.md` | `TASARIM_BLUEPRINT.md`
+
+---
+
+## 1. Hızlı Prototip Kapsamı ("Kısaca Uygulama Nasıl Olacak?")
+
+Araştırma bittiğinde önce kullanıcıya prototip oluşturmak isteyip istemediği sorulur. Onay geldiğinde aşağıdaki sade, çalışan prototip inşa edilir:
+
+{proto_scope_bullets}
+
+<!-- AGENT_PROTOTYPE_STATUS_START -->
+### Prototip Durumu & Çalıştırma Bilgisi
+- **Durum:** *(Araştırma sonrası kullanıcı prototip onayı bekleniyor.)*
+- **Proje Klasörü:** *(Prototip oluşturulunca klasör yolu yazılır.)*
+- **Çalıştırma Komutu:** *(Kullanıcının tek komutta açıp deneyebileceği komut buraya yazılır.)*
+- **Prototipte Şu An Deneyebileceğin Özellikler:** *(Prototip bitince somut maddelerle doldurulur.)*
+<!-- AGENT_PROTOTYPE_STATUS_END -->
+
+---
+
+## 2. Prototip vs Tam Sürüm Karşılaştırması ("Tamamlanınca Bunlar Olacak")
+
+Prototip tamamlandıktan sonra kullanıcıya tam sürümde eklenecek her katman açıkça gösterilir:
+
+| Alan | Hızlı Prototipte Olan | Tam Sürümde Eklenecekler (Tamamlanınca) |
+| :--- | :--- | :--- |
+{delta_rows}
+
+---
+
+## 3. Kullanıcı Geri Bildirim & Revizyon Kapısı (Tam Sürümden Önce ZORUNLU)
+
+Prototip teslim edildikten sonra **tam sürüm kodlamasına geçmeden önce** kullanıcıya şu sorular sorulur:
+
+1. **Prototip Hissi & Akış:** Prototipte beğendiğin veya "şu kısım şöyle olsa daha iyi olur" dediğin mekanik, ekran yerleşimi, kontrol veya renk var mı?
+2. **Yeni Fikir & Eklemeler:** Tam sürüm listesine özellikle eklememi istediğin yeni özellik, mod, katman, ekran veya gelir fikri var mı?
+3. **Kapsam Sadeleştirme:** Tam sürüm planından çıkarmak veya v1.1'e ertelemek istediğin bir özellik var mı?
+4. **Sonraki Adım Kararı:** Önce prototipte hızlı bir revizyon turu mu yapalım, yoksa **"her şey tamam, tam sürümü baştan sona yap"** onayıyla tam üretime mi geçelim?
+
+<!-- AGENT_USER_FEEDBACK_START -->
+### Kaydedilen Kullanıcı Geri Bildirimleri & Kararlar
+- *(Kullanıcının prototip sonrası ilettiği eklemeler, değişiklikler ve onay tarihi buraya işlenir.)*
+<!-- AGENT_USER_FEEDBACK_END -->
+
+---
+
+## 4. Tam Sürüm Uçtan Uca İnşa Kontrol Listesi (Onay Sonrası)
+
+Kullanıcı **"her şey tamam, yap"** onayı verdiğinde ajan tüm uygulamayı/oyunu baştan sona inşa eder:
+
+- [ ] Onaylanan prototip geri bildirimleri ve `TASARIM_BLUEPRINT.md` kuralları tam mimariye işlendi
+- [ ] `DOMAIN_ARASTIRMASI.md` ve `EV-REF-XX` gerçek hayat/marka görsel çıkarımları özgün stilize içerik olarak üretildi
+- [ ] `FREE_ASSET_VE_KIT_REHBERI.md` (`EV-KIT-XX`) UI/UX, model, ses ve font varlıkları entegre edildi
+- [ ] Tüm ekranlar, çekirdek + meta döngü, ses/juice, kalıcı kayıt (Save/Load), monetizasyon ve retention katmanları tamamlandı
+- [ ] Derleme/test doğrulaması ve görsel ekran QA kontrolleri (`read_file`) geçildi
+"""
+    safe_join(run_dir, "PROTOTIP_VE_TAM_SURUM_PLANI.md").write_text(proto_md, encoding="utf-8")

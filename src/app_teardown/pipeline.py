@@ -13,11 +13,13 @@ from PIL import Image
 from .analyzer import analyze_competitor, compute_cross_analysis, detect_product_mode
 from .asset_kit_finder import find_free_asset_kits
 from .config import (
+    DEFAULT_MAX_DOMAIN_IMAGES,
     DEFAULT_MAX_FRAMES,
     DEFAULT_MAX_VIDEO_SEC,
     DEFAULT_RESEARCH_DIR,
 )
 from .dashboard import write_dashboard
+from .domain_researcher import harvest_domain_reference_images
 from .frame_extractor import (
     extract_frames_and_palette,
     extract_palette_swatches,
@@ -29,6 +31,7 @@ from .models import (
     ColorSwatch,
     CompetitorRecord,
     DomainEvidenceItem,
+    DomainReferenceImage,
     IAPItem,
     IdeaBrief,
     ImageAsset,
@@ -170,21 +173,35 @@ def run_teardown(
     selected_tech: str = "",
     domain_topics: list[str] | None = None,
     theme_label: str = "",
+    core_subject: str = "",
+    famous_brands: list[str] | None = None,
+    download_domain_images: bool = True,
+    max_domain_images: int = DEFAULT_MAX_DOMAIN_IMAGES,
 ) -> TeardownRun:
-    """Execute full Idea-to-Build teardown: idea decomposition, dual-store discovery, YouTube frames, domain research, free kits, reports & dashboard."""
+    """Execute full Idea-to-Build teardown: idea decomposition, dual-store discovery, YouTube frames, real-world subject & brand photo research, free kits, reports & dashboard."""
     selected_stores = stores or ["google_play", "apple_app_store"]
     target_list = [t.strip() for t in (targets or []) if t and t.strip()]
 
-    # 0. Idea decomposition (separates mechanic benchmark query from domain/theme topics)
+    # 0. Idea decomposition (separates mechanic benchmark query from real-world domain + brand photo research)
     idea_brief: IdeaBrief | None = None
-    if idea.strip() or selected_tech.strip() or domain_topics or theme_label.strip():
+    if (
+        idea.strip()
+        or selected_tech.strip()
+        or domain_topics
+        or theme_label.strip()
+        or core_subject.strip()
+        or famous_brands
+        or query.strip()
+    ):
         idea_brief = decompose_idea(
-            idea=idea or query,
+            idea=idea or core_subject or query,
             product_mode=product_mode,
             selected_tech=selected_tech,
             explicit_mechanic_query=query,
             explicit_domain_topics=domain_topics,
             explicit_theme=theme_label,
+            explicit_subject=core_subject,
+            explicit_famous_brands=famous_brands,
         )
         if not query.strip() and not target_list:
             query = idea_brief.mechanic_query
@@ -339,15 +356,34 @@ def run_teardown(
     )
 
     domain_ev: list[DomainEvidenceItem] = []
-    if run_web_research and idea_brief and idea_brief.domain_topics:
+    if run_web_research and idea_brief and (idea_brief.domain_topics or idea_brief.core_subject):
         try:
             domain_ev = research_domain_knowledge(
                 idea_brief.domain_topics,
                 lang=lang,
                 country=country,
+                core_subject=idea_brief.core_subject,
+                famous_brands=idea_brief.famous_brands,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Domain knowledge research failed: %s", exc)
+
+    domain_refs: list[DomainReferenceImage] = []
+    domain_ref_sheet = ""
+    domain_pal: list[ColorSwatch] = []
+    domain_pal_card = ""
+    if download_domain_images and idea_brief and idea_brief.image_queries:
+        try:
+            domain_refs, domain_ref_sheet, domain_pal, domain_pal_card = harvest_domain_reference_images(
+                image_queries=idea_brief.image_queries,
+                run_dir=run_dir,
+                subject_title=idea_brief.core_subject or resolved_theme,
+                max_images=max_domain_images,
+                lang=lang,
+                country=country,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Domain visual reference harvesting failed: %s", exc)
 
     free_kits: list[AssetKitItem] = find_free_asset_kits(
         product_mode=resolved_mode,
@@ -373,6 +409,10 @@ def run_teardown(
         output_dir=str(run_dir),
         idea_brief=idea_brief,
         domain_evidence=domain_ev,
+        domain_references=domain_refs,
+        domain_reference_sheet_path=domain_ref_sheet,
+        domain_palette=domain_pal,
+        domain_palette_card_path=domain_pal_card,
         free_asset_kits=free_kits,
         competitors=competitors,
         cross_analysis=cross,
@@ -449,11 +489,43 @@ def rebuild_teardown_reports(campaign_dir: Path) -> TeardownRun:
             write_competitor_artifacts(rec, app_dir)
             competitors.append(rec)
 
-    # Hydrate saved domain evidence & free kits if present
+    # Hydrate saved domain evidence, visual reference photos, and free kits if present
     domain_ev: list[DomainEvidenceItem] = []
     dom_file = campaign_dir / "evidence" / "domain_sources.json"
     if dom_file.exists():
-        domain_ev = [DomainEvidenceItem(**d) for d in json.loads(dom_file.read_text(encoding="utf-8"))]
+        for d in json.loads(dom_file.read_text(encoding="utf-8")):
+            if isinstance(d, dict):
+                domain_ev.append(DomainEvidenceItem(**d))
+
+    domain_refs: list[DomainReferenceImage] = []
+    domain_ref_sheet = str(cfg.get("domain_reference_sheet_path") or "")
+    domain_pal_card = str(cfg.get("domain_palette_card_path") or "")
+    domain_pal: list[ColorSwatch] = []
+    refs_file = campaign_dir / "evidence" / "domain_references.json"
+    if refs_file.exists():
+        raw_refs = json.loads(refs_file.read_text(encoding="utf-8"))
+        if isinstance(raw_refs, dict):
+            ref_list = raw_refs.get("references") or []
+            domain_ref_sheet = str(raw_refs.get("reference_sheet_path") or domain_ref_sheet)
+            domain_pal_card = str(raw_refs.get("palette_card_path") or domain_pal_card)
+            domain_pal = [
+                ColorSwatch(
+                    hex=c["hex"],
+                    rgb=tuple(c.get("rgb") or (0, 0, 0)),
+                    ratio_pct=float(c.get("ratio_pct") or 0.0),
+                    luminance=float(c.get("luminance") or 0.0),
+                    temperature=str(c.get("temperature") or "neutral"),
+                )
+                for c in (raw_refs.get("domain_palette") or [])
+                if isinstance(c, dict) and c.get("hex")
+            ]
+        elif isinstance(raw_refs, list):
+            ref_list = raw_refs
+        else:
+            ref_list = []
+        for r in ref_list:
+            if isinstance(r, dict):
+                domain_refs.append(DomainReferenceImage(**r))
 
     free_kits: list[AssetKitItem] = []
     kits_file = campaign_dir / "evidence" / "free_kits.json"
@@ -461,14 +533,16 @@ def rebuild_teardown_reports(campaign_dir: Path) -> TeardownRun:
         free_kits = [AssetKitItem(**k) for k in json.loads(kits_file.read_text(encoding="utf-8"))]
 
     idea_brief: IdeaBrief | None = None
-    if cfg.get("idea") or cfg.get("selected_tech") or cfg.get("domain_topics"):
+    if cfg.get("idea") or cfg.get("selected_tech") or cfg.get("domain_topics") or cfg.get("core_subject"):
         idea_brief = decompose_idea(
-            idea=cfg.get("idea") or cfg.get("query") or "",
+            idea=cfg.get("idea") or cfg.get("core_subject") or cfg.get("query") or "",
             product_mode=cfg.get("product_mode") or "auto",
             selected_tech=cfg.get("selected_tech") or "",
             explicit_mechanic_query=cfg.get("query") or "",
             explicit_domain_topics=cfg.get("domain_topics") or [],
             explicit_theme=cfg.get("theme_label") or "",
+            explicit_subject=cfg.get("core_subject") or "",
+            explicit_famous_brands=cfg.get("famous_brands") or [],
         )
         # Ensure tech_options hydrated cleanly as TechStackOption instances
         idea_brief.tech_options = [
@@ -490,6 +564,10 @@ def rebuild_teardown_reports(campaign_dir: Path) -> TeardownRun:
         output_dir=str(campaign_dir),
         idea_brief=idea_brief,
         domain_evidence=domain_ev,
+        domain_references=domain_refs,
+        domain_reference_sheet_path=domain_ref_sheet,
+        domain_palette=domain_pal,
+        domain_palette_card_path=domain_pal_card,
         free_asset_kits=free_kits,
         competitors=competitors,
         cross_analysis=compute_cross_analysis(competitors),
