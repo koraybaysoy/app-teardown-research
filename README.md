@@ -2,7 +2,7 @@
 
 # App & Game Teardown Research Toolkit
 
-**Idea-to-Build mobile app and game pre-production & competitor teardown studio: interactive tech stack advisor (Godot, Unity, Flutter, React Native), mechanic-based top-5 App Store & Google Play discovery, YouTube gameplay/walkthrough frame-by-frame dissection, HEX color palette cards, real-world domain research, free UI/UX + 3D/2D model + SFX kits, and build-ready product design blueprints.**
+**Local mobile app and game competitor analysis for AI coding agents. Plan your tech stack, dissect top App Store and Google Play rivals frame by frame from YouTube gameplay, research real-world domain rules, collect free CC0 UI/UX, 3D, and SFX kits, and ship a build-ready design blueprint.**
 
 <p>
   <strong>English</strong> ·
@@ -28,55 +28,56 @@
 
 ## Why This Exists
 
-Before writing the first line of code for a new mobile game or app, teams spend days installing top competitors, recording gameplay or onboarding flows, pausing YouTube walkthroughs to inspect HUD layouts, screenshotting paywalls, sampling HEX colors, and hunting for monetization and retention articles.
+Most mobile game and mobile app teams start coding before they really know their market. Checking five rival titles properly takes days. You install each app, record onboarding or gameplay, pause YouTube videos to inspect HUD spacing, sample HEX color codes, log every interstitial ad or paywall, and dig through blogs for retention numbers.
 
-This toolkit automates the entire pre-design teardown locally with zero API fees. Point it at a genre or app category (for example, `"hypercasual runner"` or `"habit tracker"`), and it finds the top 5 most popular apps on **Google Play** and **Apple App Store**, downloads bounded YouTube gameplay or walkthrough clips, extracts hybrid scene-change + interval keyframes, builds timestamped storyboards and HEX color palette swatch cards, archives web evidence, and lets multimodal AI agents (Antigravity, Claude Code, Codex, Cursor, Copilot) inspect every frame to deliver evidence-cited teardown reports and a build-ready product blueprint.
+This Python toolkit runs that whole product teardown on your own machine with zero API fees. Start with a rough idea, such as a hypercasual gate-runner cooking game or a daily habit tracker. First, it compares tech stack options (Godot, Unity, Phaser, Flutter, React Native, or Native) so you pick an engine before writing code. Then it pulls the top 5 popular competitors from Google Play and the Apple App Store, downloads bounded YouTube gameplay or UI walkthrough clips, runs FFmpeg frame extraction, renders HEX color palette cards, archives web evidence, finds free game assets and UI kits, and hands multimodal AI agents (Antigravity, Claude Code, Codex, Cursor, GitHub Copilot) everything they need to write a concrete design blueprint.
 
 ## What It Does
 
-- **Step 0 — Idea Intake, Tech Stack Advisor & Mechanic-vs-Domain Split (`plan-idea`):**
-  - Takes your raw app or game idea (for example, *"hypercasual cooking game where you pass through gates to assemble burgers"*), proposes 3 ranked technology options (**Godot 4**, **Unity 6**, **Phaser/Web** or **Flutter**, **React Native**, **Native**) with trade-offs so you choose your engine/framework first.
-  - Automatically separates **Competitor Mechanic Benchmarking** (researching top *hypercasual gate/stack runners* rather than recipe apps) from **Real-World Domain Research** (researching *classic hamburger layer order, cooking stages, topping combinations* into `DOMAIN_ARASTIRMASI.md`).
-- **Free UI/UX, 3D/2D Model, SFX/Audio, Font & Engine SDK Kit Finder (`find-kits`):**
-  - Curates and web-discovers verified free (`CC0 1.0`, `MIT`, `SIL OFL`, Royalty-Free) UI kits (Kenney UI, Figma Community, Game-Icons, Lucide), 3D/2D model packs (Kenney Food Kit, KayKit, Quaternius, Poly Pizza), SFX packs (Kenney Audio, Freesound CC0, Mixkit), Google Fonts, and tech-specific plugins (e.g. Godot AdMob, PhantomCamera, Godot Shaders, RevenueCat) into `FREE_ASSET_VE_KIT_REHBERI.md`.
-- **Popular Top-5 Dual-Store Discovery (No API Keys):**
-  - Searches Google Play and Apple App Store and ranks leaders by blended relevance, install volume, rating count, and store score.
-  - Captures store metadata, IAP price ladders, ad-support flags, icons, store screenshots, and up to 30+ user reviews to mine ad fatigue, paywall friction, and core praise drivers.
-- **YouTube Gameplay & App Walkthrough Harvester (`yt-dlp`):**
-  - Automatically searches YouTube for clean no-commentary mobile gameplay (Game Mode) or app UI/onboarding walkthroughs (App Mode), scores candidates, and downloads a bounded clip (default: first 4 minutes covering launch, FTUE, core loop, and early monetization).
-- **Hybrid Frame-by-Frame Dissection & Visual Color Palette Engine (`FFmpeg` + `Pillow`):**
-  - Combines `ffmpeg` scene-change detection (capturing menu -> gameplay -> ad -> paywall transitions) with uniform timeline sampling (default: 24 keyframes per app).
-  - Generates timestamped, phase-labeled 3x4 storyboards (`gameplay_01_storyboard_*.png`), individual full-res frames, and a rendered **`color_palette_card.png`** with exact HEX codes, RGB ratios, luminance, and warm/cool temperature breakdown.
-- **Dual-Mode Product Teardown Rubrics (Game Mode + General App Mode):**
-  - **Game Mode:** UI/UX & HUD layout, core gameplay loop, controls & game feel ("juice"), visual/color direction, standout hooks, ad cadence (interstitial/rewarded/banner), IAP economy, D1/D7/D30 retention & live-ops.
-  - **App Mode:** Onboarding & Minimum Path to Value, information architecture & thumb-zone navigation, design system & HEX palette, UX delights, paywall timing & pricing anchoring, habit loops & churn prevention.
-- **Zero-API-Key Web Evidence Archiving + Evidence Ledger (`evidence.json`):**
-  - Collects web research snippets and verified URLs covering revenue estimates, monetization breakdowns, and UX/game design teardowns into `web_research.md` and `evidence/web_sources.json`.
-  - Assigns unique Evidence IDs (`EV-STORE-01`, `EV-VID-01`, `EV-FRAME-01-04`, `EV-PALETTE-01`, `EV-WEB-02`, `EV-REV-05`) so every claim in your report traces back to a local artifact or URL.
-- **Reports, Design Blueprint & Local Visual Studio (`dashboard.html`):**
-  - Outputs per-competitor `teardown_report.md`, `web_research.md`, `store_metadata.md`, `evidence.json`, plus campaign-level `GENEL_TEARDOWN_RAPORU.md`, `TASARIM_BLUEPRINT.md`, `apps_index.csv`, and an interactive local `dashboard.html` (strict CSP, zero CDNs, zero `innerHTML`).
+- **Step 0: Idea Intake, Tech Advisor, and Mechanic vs. Domain Split (`plan-idea`):**
+  - Reads your raw app or game concept and ranks 3 fitting tech stacks with clear trade-offs (Godot 4, Unity 6, Phaser for games; Flutter, React Native, Native for apps). You pick the stack first.
+  - Separates competitor mechanic search from real-world domain research. If you pitch a hypercasual gate-runner about stacking burgers, it benchmarks top hypercasual runner games on both stores instead of recipe apps. At the same time, it researches real hamburger layer order, cooking stages, and topping rules into `DOMAIN_ARASTIRMASI.md`.
+- **Free UI/UX, 3D/2D Model, SFX, Font, and SDK Kit Finder (`find-kits`):**
+  - Curates and web-searches free (`CC0 1.0`, `MIT`, `SIL OFL`, royalty-free) production packs matched to your theme and chosen engine.
+  - Covers UI kits (Kenney UI, Figma Community, Game-Icons, Lucide), 3D/2D models (Kenney Food Kit, KayKit, Quaternius, Poly Pizza), sound effects (Kenney Audio, Freesound CC0, Mixkit), Google Fonts, and free plugins (Godot AdMob, PhantomCamera, Godot Shaders, RevenueCat) in `FREE_ASSET_VE_KIT_REHBERI.md`.
+- **Top-5 App Store and Google Play Discovery (No API Keys):**
+  - Ranks popular leaders across Google Play and Apple App Store by search relevance, install volume, rating count, and store rating.
+  - Saves store metadata, IAP price ladders, ad flags, icons, screenshots, and 30+ user reviews to surface ad fatigue, paywall complaints, and what players praise most.
+- **YouTube Gameplay and Walkthrough Harvester (`yt-dlp`):**
+  - Searches YouTube for clean no-commentary mobile gameplay (Game Mode) or app UI/onboarding walkthroughs (App Mode), scores each video, and downloads a bounded clip. By default, it grabs the first 4 minutes to capture launch, FTUE, core loop, and early monetization.
+- **Hybrid Frame Extraction and HEX Color Palette Engine (`FFmpeg` + `Pillow`):**
+  - Pairs `ffmpeg` scene-change detection with uniform timeline sampling (24 keyframes per app by default) so menu, gameplay, ad, and paywall transitions do not get missed.
+  - Builds timestamped, phase-labeled 3x4 storyboards (`gameplay_01_storyboard_*.png`), individual full-res frames, and a visual `color_palette_card.png` with HEX codes, RGB ratios, luminance, and warm/cool splits.
+- **Game Mode and App Mode Teardown Rubrics:**
+  - **Game Mode:** UI/UX and HUD layout, core gameplay loop, controls and game feel, color palette contrast, standout hooks, ad cadence (interstitial, rewarded, banner), IAP economy, and D1/D7/D30 retention.
+  - **App Mode:** Onboarding and time-to-value, navigation and thumb-zone layout, visual design system, UX delights, paywall timing and pricing anchoring, habit loops, and churn triggers.
+- **Zero-API-Key Web Evidence and Evidence Ledger (`evidence.json`):**
+  - Collects revenue estimates, monetization write-ups, and UX/game teardowns into `web_research.md` and `evidence/web_sources.json`.
+  - Tags every artifact with a stable Evidence ID (`EV-STORE-01`, `EV-VID-01`, `EV-FRAME-01-04`, `EV-PALETTE-01`, `EV-WEB-02`, `EV-DOM-01`, `EV-KIT-01`) so reports cite real local files or URLs instead of guesswork.
+- **Reports, Design Blueprint, and Local Dashboard (`dashboard.html`):**
+  - Writes per-app `teardown_report.md`, `web_research.md`, `store_metadata.md`, `evidence.json`, plus campaign-wide `GENEL_TEARDOWN_RAPORU.md`, `DOMAIN_ARASTIRMASI.md`, `FREE_ASSET_VE_KIT_REHBERI.md`, `TASARIM_BLUEPRINT.md`, `apps_index.csv`, and a self-contained local `dashboard.html` (strict CSP, zero CDNs, zero `innerHTML`).
 
 ## Install as Plugin or Agent Skills
 
 ### 1. Universal Agent Skills (`skills.sh` / `npx skills`)
-Works with **Antigravity, Claude Code, Codex, Cursor, GitHub Copilot, Windsurf**, and other Agent Skills clients:
+Works with Antigravity, Claude Code, Codex, Cursor, GitHub Copilot, Windsurf, and other Agent Skills clients:
 
 ```bash
 # Install both skills (app-teardown + teardown-frameworks)
 npx skills add https://github.com/koraybaysoy/app-teardown-research
 
-# Or install individually
+# Or install one skill
 npx skills add https://github.com/koraybaysoy/app-teardown-research --skill app-teardown
 npx skills add https://github.com/koraybaysoy/app-teardown-research --skill teardown-frameworks
 ```
 
-### 2. Claude Code Plugin (One-Step Marketplace Install)
+### 2. Claude Code Plugin (Marketplace Install)
 ```text
 /plugin install app-teardown --marketplace koraybaysoy/app-teardown-research
 ```
 
-### 3. Claude Code Global MCP (Use From Any Project Folder)
-After running `setup.ps1` or `setup.sh` once, register the local MCP server globally:
+### 3. Claude Code Global MCP Server (Use From Any Repo)
+Run `setup.ps1` or `setup.sh` once, then register the local MCP server globally:
 
 ```bash
 claude mcp add --scope user app-teardown \
@@ -84,9 +85,9 @@ claude mcp add --scope user app-teardown \
   -- "/absolute/path/to/app-teardown-research/.venv/bin/python" -m app_teardown.mcp_server
 ```
 
-### 4. Cursor & Antigravity Plugins
-- **Antigravity:** Includes root `plugin.json`, `mcp_config.json`, `.agents/skills/`, and `.agents/rules/`.
-- **Cursor:** Includes `.cursor-plugin/plugin.json`, `.cursor-plugin/marketplace.json`, `.cursor/rules/app-teardown.mdc`, and `.mcp.json`.
+### 4. Cursor and Antigravity Plugins
+- **Antigravity:** Ships with root `plugin.json`, `mcp_config.json`, `.agents/skills/`, and `.agents/rules/`.
+- **Cursor:** Ships with `.cursor-plugin/plugin.json`, `.cursor-plugin/marketplace.json`, `.cursor/rules/app-teardown.mdc`, and `.mcp.json`.
 
 ## Supported AI Coding Agents
 
@@ -102,7 +103,7 @@ claude mcp add --scope user app-teardown \
 ## Prerequisites
 
 - **Python 3.11+**
-- **FFmpeg** in your system `PATH` (required for YouTube clip trimming, scene-change detection, and keyframe extraction):
+- **FFmpeg** in your system `PATH` (needed for YouTube clip trimming, scene-change detection, and keyframe extraction):
   - Windows: `winget install Gyan.FFmpeg`
   - macOS: `brew install ffmpeg`
   - Ubuntu/Debian: `sudo apt install ffmpeg`
@@ -126,7 +127,7 @@ bash ./setup.sh
 ## CLI Usage
 
 ```bash
-# 0. Plan an idea first: get ranked tech stack options + separated mechanic query & domain topics
+# 0. Plan an idea first: get ranked tech stack options + separated mechanic query and domain topics
 ./.venv/bin/python -m app_teardown.cli plan-idea "hypercasual cooking gate runner game building burgers" --mode game
 
 # 1. Preview top 5 popular competitors across both stores
@@ -147,7 +148,7 @@ bash ./setup.sh
   --max-frames 24 \
   --name "hypercasual-burger-gate-godot"
 
-# 3. Standalone real-world domain research & free asset kit finder
+# 3. Standalone real-world domain research and free asset kit finder
 ./.venv/bin/python -m app_teardown.cli research-domain "classic hamburger layers assembly order" "fast food burger ingredients"
 ./.venv/bin/python -m app_teardown.cli find-kits --mode game --tech godot --theme "burger cooking food"
 
@@ -180,16 +181,14 @@ bash ./setup.sh
 
 ```text
 Read .agents/skills/app-teardown/SKILL.md and .agents/skills/teardown-frameworks/SKILL.md.
-I want to design a new hypercasual mobile game.
-Run a full teardown for the top 5 competitors across Google Play and Apple App Store (US/en).
-Visually inspect every extracted storyboard, critical gameplay keyframes, color_palette_card.png, and store_screenshots_sheet.png.
-Enrich web_research.md using web search for revenue, ad cadence, and retention benchmarks.
-Fill every competitor's teardown_report.md with exact Evidence IDs, synthesize GENEL_TEARDOWN_RAPORU.md, and produce an actionable TASARIM_BLUEPRINT.md for my upcoming game.
+I want to build a hypercasual cooking gate-runner game where players stack burgers through gates.
+First suggest 3 tech stack options (Godot, Unity, Phaser) and let me choose.
+After I pick the engine, research the top 5 hypercasual runner competitors on Google Play and Apple App Store, download their YouTube gameplay, extract keyframes and HEX color palettes, research real hamburger layer rules, find free CC0 UI/UX, 3D model, and SFX kits, and write a full TASARIM_BLUEPRINT.md.
 ```
 
 ## Connecting as an MCP Server
 
-`.mcp.json` and `mcp_config.json` are included at the repository root. Exposed MCP tools:
+`.mcp.json` and `mcp_config.json` sit at the repository root. Exposed MCP tools:
 - `plan_idea_and_tech`
 - `discover_top_apps`
 - `run_product_teardown`
@@ -208,10 +207,10 @@ All downloaded media stays local under `teardowns/` (git-ignored):
 teardowns/
 └── 2026-11-27_1230_hypercasual-burger-gate-godot/
     ├── dashboard.html                 # Interactive filmstrip, palette wall, domain panel, free kits catalog
-    ├── GENEL_TEARDOWN_RAPORU.md       # Cross-competitor comparison matrix & market synthesis
+    ├── GENEL_TEARDOWN_RAPORU.md       # Cross-competitor comparison matrix and market synthesis
     ├── DOMAIN_ARASTIRMASI.md          # Real-world subject-matter rules (e.g. burger layer order, cooking stages)
-    ├── FREE_ASSET_VE_KIT_REHBERI.md   # Verified free CC0/MIT UI/UX, 3D/2D model, SFX/audio, font & SDK kits
-    ├── TASARIM_BLUEPRINT.md           # Build-ready engine-specific architecture, UI/UX, color, monetization & sprint plan
+    ├── FREE_ASSET_VE_KIT_REHBERI.md   # Verified free CC0/MIT UI/UX, 3D/2D model, SFX/audio, font, and SDK kits
+    ├── TASARIM_BLUEPRINT.md           # Build-ready engine-specific architecture, UI/UX, color, monetization, and sprint plan
     ├── apps_index.csv                 # Spreadsheet-ready competitor summary
     ├── apps_index.json                # Complete structured run payload
     ├── evidence/
@@ -219,9 +218,9 @@ teardowns/
     │   └── free_kits.json
     └── apps/
         └── gp_example-game_com-example/
-            ├── teardown_report.md     # Evidence-cited deep UI/UX, gameplay, monetization & retention teardown
-            ├── web_research.md        # Archived web sources + agent web verification notes
-            ├── store_metadata.md      # Archived store listing, IAP ladder & user reviews
+            ├── teardown_report.md     # Evidence-cited UI/UX, gameplay, monetization, and retention teardown
+            ├── web_research.md        # Archived web sources and agent web verification notes
+            ├── store_metadata.md      # Archived store listing, IAP ladder, and user reviews
             ├── evidence.json          # Complete Evidence ID ledger (EV-STORE, EV-VID, EV-FRAME, EV-WEB)
             ├── metadata.json          # Normalized competitor JSON
             ├── evidence/
@@ -235,13 +234,13 @@ teardowns/
                 └── gameplay_frames/   # Individual keyframes + 3x4 timestamped storyboards
 ```
 
-## Security & Privacy Notes
+## Security and Privacy Notes
 
-- **SSRF Protection:** Media/API requests enforce HTTPS and allowlisted store/CDN/YouTube hosts; public web citation URLs reject direct IPs, localhost, and private/internal hosts.
-- **Path Safety:** All output folders and filenames are ASCII-slugified and checked via `safe_join()` against directory traversal.
-- **Subprocess Safety:** `ffmpeg` and `ffprobe` are always called with `shell=False` and explicit argument arrays.
-- **Safe Local Dashboard:** `dashboard.html` enforces a strict Content Security Policy and builds all DOM nodes via `document.createElement` and `textContent` (zero `innerHTML`).
-- **Prompt Injection Defense:** Agent rules treat all scraped store copy, reviews, YouTube titles, and web snippets strictly as untrusted data.
+- **SSRF Protection:** Media and store requests enforce HTTPS and allowlisted store, CDN, and YouTube hosts. Public web citation URLs reject direct IPs, localhost, and private or internal hosts.
+- **Path Safety:** Output folders and filenames are ASCII-slugified and checked via `safe_join()` against directory traversal.
+- **Subprocess Safety:** `ffmpeg` and `ffprobe` always run with `shell=False` and explicit argument arrays.
+- **Safe Local Dashboard:** `dashboard.html` enforces a strict Content Security Policy and creates all DOM nodes via `document.createElement` and `textContent` (zero `innerHTML`).
+- **Prompt Injection Defense:** Agent rules treat all scraped store text, reviews, YouTube titles, and web snippets strictly as untrusted data.
 
 ## License
 

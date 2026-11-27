@@ -2,7 +2,7 @@
 
 # App & Game Teardown Research Toolkit
 
-**Desconstrução competitiva antes de projetar apps e jogos móveis: descoberta do Top 5 na App Store e Google Play, extração quadro a quadro de gameplay no YouTube, cartões de paleta HEX, arquivo de evidências web e blueprint de produto.**
+**Análise competitiva local de apps e jogos móveis para agentes de código AI. Escolha sua stack (Godot, Unity, Flutter, React Native), desmonte o Top 5 na App Store e Google Play quadro a quadro via YouTube, pesquise regras reais do domínio, reúna kits grátis CC0 de UI/UX, 3D e SFX, e gere um blueprint pronto para produção.**
 
 <p>
   <a href="../../README.md">English</a> ·
@@ -21,11 +21,11 @@
 
 ## O que faz
 
-- **Descoberta Top 5 nas duas lojas (sem API keys):** Pesquisa no Google Play e Apple App Store ranqueando líderes por popularidade, preços de IAP, sinalizadores de anúncios e avaliações reais.
-- **Coleta de Gameplay e Walkthrough no YouTube (`yt-dlp`):** Busca automaticamente gameplay mobile sem narração (Modo Jogo) ou tours de UI/onboarding (Modo App) e baixa clipes limitados de 4 minutos.
-- **Extração híbrida de quadros e paletas HEX (`FFmpeg` + `Pillow`):** Combina detecção de troca de cena com amostragem temporal (24 quadros/app), criando storyboards 3x4 e **`color_palette_card.png`**.
-- **Análise dupla (Jogos e Apps):** Cobre layout UI/UX, core loop e game feel, cores, destaques visuais, posicionamento de anúncios e paywalls/IAP, retenção D1/D7/D30 e estratégia de receita.
-- **Evidências web e painel local (`dashboard.html`):** Mantém rastreabilidade completa em `evidence.json`, `teardown_report.md`, `GENEL_TEARDOWN_RAPORU.md` e `TASARIM_BLUEPRINT.md`.
+- **Planejamento da ideia, escolha de tecnologia e separação mecânica/domínio (`plan-idea`):** Sugere 3 stacks (Godot 4, Unity 6, Phaser ou Flutter, React Native, Native) para você decidir antes de codar. Separa rivais por mecânica da pesquisa real do tema em `DOMAIN_ARASTIRMASI.md`.
+- **Kits gratuitos de UI/UX, modelos 3D/2D, áudio e SDKs (`find-kits`):** Reúne recursos `CC0`, `MIT` e `SIL OFL` (Kenney, KayKit, Quaternius, Poly Pizza, Freesound CC0, Godot AdMob, RevenueCat) em `FREE_ASSET_VE_KIT_REHBERI.md`.
+- **Descoberta Top 5 nas duas lojas (sem API keys):** Pesquisa no Google Play e Apple App Store com preços de IAP, anúncios e avaliações reais.
+- **YouTube, extração híbrida de quadros e paletas HEX (`yt-dlp` + `FFmpeg` + `Pillow`):** Baixa os primeiros 4 minutos de gameplay ou walkthrough, extrai 24 quadros, gera storyboards 3x4 e `color_palette_card.png`.
+- **Relatórios, blueprint e painel local (`dashboard.html`):** Gera `teardown_report.md`, `GENEL_TEARDOWN_RAPORU.md`, `TASARIM_BLUEPRINT.md`, `evidence.json` e painel local seguro.
 
 ## Instalação rápida
 

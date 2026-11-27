@@ -2,7 +2,7 @@
 
 # App & Game Teardown Research Toolkit
 
-**Análisis competitivo previo al diseño de apps y juegos móviles: descubrimiento del Top 5 en App Store y Google Play, extracción cuadro por cuadro de gameplay en YouTube, tarjetas de paleta HEX, archivo de evidencia web y blueprint de diseño.**
+**Análisis competitivo local de apps y juegos móviles para agentes de código AI. Elige tu stack tecnológico (Godot, Unity, Flutter, React Native), analiza el Top 5 en App Store y Google Play cuadro por cuadro desde YouTube, investiga reglas reales del tema, reúne kits gratuitos CC0 de UI/UX, 3D y SFX, y genera un blueprint listo para construir.**
 
 <p>
   <a href="../../README.md">English</a> ·
@@ -21,11 +21,11 @@
 
 ## Qué hace
 
-- **Descubrimiento Top 5 en ambas tiendas (sin claves API):** Busca en Google Play y Apple App Store priorizando popularidad, escalera de IAP, banderas de anuncios y reseñas de usuarios.
-- **Descarga de Gameplay y Walkthrough en YouTube (`yt-dlp`):** Encuentra automáticamente videos de gameplay sin comentarios (Modo Juego) o recorridos de UI/onboarding (Modo App) y descarga los primeros 4 minutos.
-- **Extracción híbrida de fotogramas y paletas HEX (`FFmpeg` + `Pillow`):** Combina detección de cambios de escena e intervalos regulares (24 fotogramas por app), generando storyboards 3x4 con marcas de tiempo y **`color_palette_card.png`**.
-- **Rúbricas duales (Juegos y Apps generales):** Evalúa arquitectura UI/UX, bucle principal y game feel, paletas de color, ganchos visuales, cadencia de anuncios e IAP/paywalls, retención D1/D7/D30 y estrategia de ingresos.
-- **Evidencia web y estudio local (`dashboard.html`):** Archiva citas verificadas en `web_research.md` y `evidence.json`, generando `teardown_report.md`, `GENEL_TEARDOWN_RAPORU.md`, `TASARIM_BLUEPRINT.md` y un tablero local con CSP estricta.
+- **Plan de idea, asesor tecnológico y separación mecánica/dominio (`plan-idea`):** Compara 3 stacks (Godot 4, Unity 6, Phaser o Flutter, React Native, Native) para que elijas primero. Separa la búsqueda de competidores por mecánica de la investigación real del tema (como orden de capas de hamburguesa) en `DOMAIN_ARASTIRMASI.md`.
+- **Buscador de kits gratuitos (`find-kits`):** Reúne paquetes `CC0`, `MIT` y `SIL OFL` de UI/UX, modelos 3D/2D, audio SFX, fuentes y SDKs (Kenney, KayKit, Quaternius, Poly Pizza, Freesound CC0, Godot AdMob, RevenueCat) en `FREE_ASSET_VE_KIT_REHBERI.md`.
+- **Descubrimiento Top 5 en ambas tiendas (sin claves API):** Busca en Google Play y Apple App Store por popularidad, IAP, anuncios y reseñas reales.
+- **YouTube, extracción híbrida de fotogramas y paletas HEX (`yt-dlp` + `FFmpeg` + `Pillow`):** Descarga los primeros 4 minutos de gameplay o walkthrough, extrae 24 fotogramas clave, crea storyboards 3x4 y `color_palette_card.png`.
+- **Informes, blueprint y panel local (`dashboard.html`):** Genera `teardown_report.md`, `GENEL_TEARDOWN_RAPORU.md`, `TASARIM_BLUEPRINT.md`, `evidence.json` y un panel local con CSP estricta.
 
 ## Instalación rápida
 

@@ -2,7 +2,7 @@
 
 # App & Game Teardown Research Toolkit
 
-**モバイルアプリ・ゲーム設計前の競合分解ツールキット：App Store・Google Play 上位5件の抽出、YouTube ゲームプレイ/UIウォークスルーのフレーム分解、HEXカラーパレット生成、Web根拠アーカイブ、設計ブループリント作成。**
+**AIコーディングエージェント向けのモバイルアプリ・ゲーム設計前競合分析ツールキット。技術スタック選定（Godot、Unity、Flutter、React Native）、App Store・Google Play 上位5件のYouTubeフレーム分解、HEXカラーパレット生成、ドメイン知識調査、無料CC0 UI/UX・3D・効果音キット収集、設計ブループリント出力までをローカルで完結します。**
 
 <p>
   <a href="../../README.md">English</a> ·
@@ -21,11 +21,11 @@
 
 ## 主な機能
 
-- **両ストア人気トップ5発見（APIキー不要）：** Google Play と Apple App Store から人気競合を抽出し、IAP価格帯・広告フラグ・ユーザーレビューを取得します。
-- **YouTube 実機プレイ＆UIツアー取得（`yt-dlp`）：** ゲームモードでは実況なしゲームプレイ、アプリモードではUI/オンボーディング動画を自動検索し、冒頭4分を安全にダウンロードします。
-- **ハイブリッド・フレーム抽出＆配色解析（`FFmpeg` + `Pillow`）：** シーン変化検出と等間隔サンプリングで24フレームを抽出し、タイムスタンプ付きストーリーボードと **`color_palette_card.png`** を生成します。
-- **ゲーム＆一般アプリ両対応の分解フレームワーク：** UI/UX配置、コアループと操作感、配色、目を引くフック、広告・IAP/ペイウォール設計、リテンション施策、収益戦略を網羅します。
-- **Web根拠アーカイブ＆ローカルダッシュボード（`dashboard.html`）：** `evidence.json`、`teardown_report.md`、`GENEL_TEARDOWN_RAPORU.md`、`TASARIM_BLUEPRINT.md`、厳格CSP対応のローカルスタジオを出力します。
+- **アイデア分解・技術選定・ドメイン調査 (`plan-idea`)：** Godot 4 / Unity 6 / Phaser または Flutter / React Native / Native の3案を比較提示します。競合のメカニクス調査とテーマ固有のドメイン知識（例：ハンバーガーの層順や調理工程）を分けて `DOMAIN_ARASTIRMASI.md` に記録します。
+- **無料 UI/UX・3D/2Dモデル・SFX・SDKキット検索 (`find-kits`)：** 選んだ技術とテーマに合う `CC0` / `MIT` / `SIL OFL` 素材（Kenney、KayKit、Quaternius、Poly Pizza、Freesound CC0、Godot AdMob、RevenueCat）を `FREE_ASSET_VE_KIT_REHBERI.md` にまとめます。
+- **両ストア人気トップ5発見（APIキー不要）：** Google Play と Apple App Store から競合、IAP価格帯、広告フラグ、レビューを取得します。
+- **YouTube実機取得・フレーム抽出・配色解析 (`yt-dlp` + `FFmpeg` + `Pillow`)：** 冒頭4分から24フレームを抽出し、3x4ストーリーボードと `color_palette_card.png` を生成します。
+- **レポート・設計ブループリント・ローカルダッシュボード (`dashboard.html`)：** 根拠ID付きの `teardown_report.md`、`GENEL_TEARDOWN_RAPORU.md`、`TASARIM_BLUEPRINT.md` と厳格CSP対応のローカルスタジオを出力します。
 
 ## クイックセットアップ
 

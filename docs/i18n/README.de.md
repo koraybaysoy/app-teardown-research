@@ -2,7 +2,7 @@
 
 # App & Game Teardown Research Toolkit
 
-**Wettbewerbs-Teardown vor dem App- und Spiele-Design: Top-5-Suche im App Store & Google Play, YouTube-Gameplay-/Walkthrough-Frame-Extraktion, HEX-Farbpalettenkarten, Web-Beweisarchiv und umsetzbare Produkt-Blueprints.**
+**Lokales Wettbewerbs-Teardown-Toolkit für mobile Apps und Spiele mit AI-Coding-Agents. Wähle deinen Tech-Stack (Godot, Unity, Flutter, React Native), zerlege die Top 5 im App Store und bei Google Play Bild für Bild per YouTube-Gameplay, recherchiere Domänenwissen, sammle kostenlose CC0 UI/UX-, 3D- und SFX-Kits und erstelle einen umsetzbaren Design-Blueprint.**
 
 <p>
   <a href="../../README.md">English</a> ·
@@ -21,11 +21,11 @@
 
 ## Funktionsumfang
 
-- **Top-5-Discovery in beiden Stores (ohne API-Keys):** Durchsucht Google Play und Apple App Store nach den beliebtesten Apps, inklusive IAP-Preisstaffeln, Werbe-Flags und Nutzerbewertungen.
-- **YouTube-Gameplay- & Walkthrough-Harvester (`yt-dlp`):** Findet automatisch saubere Mobile-Gameplay-Videos (Game Mode) oder UI/Onboarding-Touren (App Mode) und lädt die ersten 4 Minuten herunter.
-- **Hybride Frame-Extraktion & HEX-Farbpaletten (`FFmpeg` + `Pillow`):** Kombiniert Szenenwechsel-Erkennung und Zeitintervalle (24 Frames/App) zu 3x4-Storyboards und **`color_palette_card.png`**.
-- **Dual-Mode-Teardown-Rubriken (Games & Apps):** Bewertet UI/UX-Layout, Core Loop & Game Feel, Farbpaletten, visuelle Hooks, Werbe-/IAP-/Paywall-Platzierung, Retention-Strategien und Erlösmodelle.
-- **Web-Beweisarchiv & lokales Studio (`dashboard.html`):** Erstellt `evidence.json`, `teardown_report.md`, `GENEL_TEARDOWN_RAPORU.md`, `TASARIM_BLUEPRINT.md` und ein lokales CSP-gehärtetes Dashboard.
+- **Ideen-Intake, Tech-Berater und Trennung von Mechanik und Domäne (`plan-idea`):** Vergleicht 3 Stacks (Godot 4, Unity 6, Phaser oder Flutter, React Native, Native) vor dem Start. Trennt die Mechanik-Konkurrenzanalyse von realem Fachwissen in `DOMAIN_ARASTIRMASI.md`.
+- **Kostenlose UI/UX-, 3D/2D-, Audio- und SDK-Kits (`find-kits`):** Sammelt geprüfte `CC0`-, `MIT`- und `SIL OFL`-Pakete (Kenney, KayKit, Quaternius, Poly Pizza, Freesound CC0, Godot AdMob, RevenueCat) in `FREE_ASSET_VE_KIT_REHBERI.md`.
+- **Top-5-Suche in beiden Stores (ohne API-Keys):** Durchsucht Google Play und Apple App Store nach Popularität, IAP-Staffeln, Werbung und Nutzerbewertungen.
+- **YouTube-Clip, hybride Frame-Extraktion und HEX-Paletten (`yt-dlp` + `FFmpeg` + `Pillow`):** Lädt die ersten 4 Minuten herunter, extrahiert 24 Keyframes und erstellt 3x4-Storyboards sowie `color_palette_card.png`.
+- **Berichte, Design-Blueprint und lokales Studio (`dashboard.html`):** Erzeugt `teardown_report.md`, `GENEL_TEARDOWN_RAPORU.md`, `TASARIM_BLUEPRINT.md`, `evidence.json` und ein CSP-gehärtetes Dashboard.
 
 ## Schnellstart
 
