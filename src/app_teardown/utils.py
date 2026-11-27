@@ -10,6 +10,7 @@ import unicodedata
 from pathlib import Path
 from typing import Literal
 from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.robotparser import RobotFileParser
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -177,6 +178,78 @@ def fetch_public_image_bytes(
         finally:
             resp.close()
     raise ValueError(f"Too many redirects while fetching {url}")
+
+
+_ROBOTS_CACHE: dict[tuple[str, str], RobotFileParser | bool] = {}
+_MAX_ROBOTS_CACHE = 256
+
+
+def clear_robots_cache() -> None:
+    """Clear the in-memory robots.txt cache (useful for testing)."""
+    _ROBOTS_CACHE.clear()
+
+
+def is_url_allowed_by_robots(
+    url: str,
+    user_agent: str = DEFAULT_USER_AGENT,
+    session: requests.Session | None = None,
+    timeout: int = 8,
+) -> bool:
+    """Check a third-party host's robots.txt before fetching media (SSRF-safe, cached per host)."""
+    try:
+        safe_url = validate_public_web_url(url)
+    except ValueError:
+        return False
+
+    parsed = urlparse(safe_url)
+    scheme = parsed.scheme or "https"
+    netloc = (parsed.netloc or "").lower()
+    if not netloc:
+        return False
+
+    cache_key = (scheme, netloc)
+    cached = _ROBOTS_CACHE.get(cache_key)
+    if cached is not None:
+        if isinstance(cached, bool):
+            return cached
+        return bool(cached.can_fetch(user_agent, safe_url) and cached.can_fetch("*", safe_url))
+
+    robots_url = f"{scheme}://{netloc}/robots.txt"
+    try:
+        validate_public_image_url(robots_url.replace("/robots.txt", "/check.jpg"), resolve_dns=True)
+    except ValueError:
+        return False
+
+    sess = session or create_http_session()
+    if len(_ROBOTS_CACHE) >= _MAX_ROBOTS_CACHE:
+        _ROBOTS_CACHE.clear()
+
+    try:
+        resp = sess.get(robots_url, timeout=timeout, allow_redirects=False)
+        if resp.status_code in (404, 410):
+            _ROBOTS_CACHE[cache_key] = True
+            return True
+        if resp.status_code in (401, 403):
+            _ROBOTS_CACHE[cache_key] = False
+            return False
+        if resp.status_code != 200:
+            # Conservative RFC 9309 handling for unexpected 5xx/redirect statuses
+            _ROBOTS_CACHE[cache_key] = True
+            return True
+        rp = RobotFileParser()
+        rp.set_url(robots_url)
+        rp.parse(resp.text.splitlines())
+        _ROBOTS_CACHE[cache_key] = rp
+        return bool(rp.can_fetch(user_agent, safe_url) and rp.can_fetch("*", safe_url))
+    except Exception:  # noqa: BLE001
+        # Do not hang or crash if robots.txt times out; allow fallback handling to decide
+        _ROBOTS_CACHE[cache_key] = False
+        return False
+
+
+def anonymize_reviewer_id(index: int) -> str:
+    """Return a KVKK/GDPR-safe anonymized reviewer label instead of personal usernames."""
+    return f"reviewer_{max(1, int(index)):02d}"
 
 
 def create_http_session(lang: str = "en", country: str = "us") -> requests.Session:

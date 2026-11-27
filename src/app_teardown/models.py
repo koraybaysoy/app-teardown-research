@@ -264,6 +264,7 @@ class TeardownRun:
     max_frames: int
     created_at: str
     output_dir: str
+    official_only: bool = False
     idea_brief: IdeaBrief | None = None
     domain_evidence: list[DomainEvidenceItem] = field(default_factory=list)
     domain_references: list[DomainReferenceImage] = field(default_factory=list)

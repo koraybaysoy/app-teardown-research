@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-PACKAGE_VERSION = "1.2.0"
+PACKAGE_VERSION = "1.3.0"
 
 DEFAULT_RESEARCH_DIR = Path.cwd() / "teardowns"
 

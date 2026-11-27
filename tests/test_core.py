@@ -43,10 +43,13 @@ from app_teardown.models import (
     WebEvidenceItem,
     YouTubeVideoRecord,
 )
-from app_teardown.pipeline import rebuild_teardown_reports
+from app_teardown.pipeline import purge_campaign_media, rebuild_teardown_reports
 from app_teardown.report_generator import write_campaign_reports, write_competitor_artifacts
 from app_teardown.utils import (
+    anonymize_reviewer_id,
+    clear_robots_cache,
     format_timestamp_mmss,
+    is_url_allowed_by_robots,
     parse_installs_int,
     parse_price_float,
     parse_store_target,
@@ -696,6 +699,135 @@ def test_app_mode_prototype_and_full_release_plan_generation(tmp_path: Path) -> 
     assert "Kısa Onboarding" in proto_md
     assert "Paywall" in proto_md
     assert "her şey tamam, yap" in proto_md
+
+
+# --- Compliance, Privacy (KVKK/GDPR), robots.txt & Media Purge Tests ---
+
+
+def test_anonymize_reviewer_id_and_robots_txt_enforcement(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert anonymize_reviewer_id(1) == "reviewer_01"
+    assert anonymize_reviewer_id(15) == "reviewer_15"
+
+    clear_robots_cache()
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda host, port, type=0: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))],
+    )
+
+    class _FakeResp:
+        def __init__(self, status_code: int, text: str = "") -> None:
+            self.status_code = status_code
+            self.text = text
+
+    class _FakeSession:
+        def __init__(self, responses: dict[str, _FakeResp]) -> None:
+            self._responses = responses
+
+        def get(self, url: str, timeout: int = 8, allow_redirects: bool = False) -> _FakeResp:
+            return self._responses[url]
+
+    sess = _FakeSession({
+        "https://brand.example.com/robots.txt": _FakeResp(200, "User-agent: *\nDisallow: /private/\nAllow: /public/\n"),
+        "https://open.example.com/robots.txt": _FakeResp(404, ""),
+        "https://closed.example.com/robots.txt": _FakeResp(403, "Forbidden"),
+    })
+
+    assert is_url_allowed_by_robots("https://brand.example.com/public/burger.jpg", session=sess) is True
+    assert is_url_allowed_by_robots("https://brand.example.com/private/secret.jpg", session=sess) is False
+    assert is_url_allowed_by_robots("https://open.example.com/any/photo.png", session=sess) is True
+    assert is_url_allowed_by_robots("https://closed.example.com/any/photo.png", session=sess) is False
+    clear_robots_cache()
+
+
+def test_purge_campaign_media_dry_run_and_preserve_reports(tmp_path: Path) -> None:
+    run_dir = tmp_path / "2026-11-27_2100_purge-test"
+    (run_dir / "assets" / "domain_references").mkdir(parents=True)
+    app_assets = run_dir / "apps" / "gp_demo" / "assets"
+    for sub in ("gameplay_video", "gameplay_frames", "store_screenshots", "icon"):
+        (app_assets / sub).mkdir(parents=True)
+
+    # Authored reports & metadata (must be preserved)
+    (run_dir / "GENEL_TEARDOWN_RAPORU.md").write_text("# Genel", encoding="utf-8")
+    (run_dir / "DOMAIN_ARASTIRMASI.md").write_text("# Domain", encoding="utf-8")
+    (run_dir / "TASARIM_BLUEPRINT.md").write_text("# Blueprint", encoding="utf-8")
+    (run_dir / "run_config.json").write_text(json.dumps({"run_id": "purge-test"}), encoding="utf-8")
+    (run_dir / "apps" / "gp_demo" / "teardown_report.md").write_text("# App", encoding="utf-8")
+
+    # Downloaded third-party media (must be purged)
+    (run_dir / "assets" / "domain_references" / "ref_01_brand.jpg").write_bytes(b"jpg1")
+    (run_dir / "assets" / "domain_references" / "domain_reference_sheet.png").write_bytes(b"png1")
+    (run_dir / "assets" / "domain_references" / "domain_palette_card.png").write_bytes(b"pal1")
+    (app_assets / "gameplay_video" / "gameplay_01.mp4").write_bytes(b"mp4bytes")
+    (app_assets / "gameplay_frames" / "frame_01.jpg").write_bytes(b"framebytes")
+    (app_assets / "store_screenshots" / "01.png").write_bytes(b"shotbytes")
+    (app_assets / "icon" / "icon.png").write_bytes(b"iconbytes")
+    (app_assets / "color_palette_card.png").write_bytes(b"pal2")
+
+    # 1. Dry-run previews 6 third-party media files without deleting
+    dry = purge_campaign_media(run_dir, keep_palettes=True, dry_run=True)
+    assert dry["deleted_count"] == 6
+    assert (app_assets / "gameplay_video" / "gameplay_01.mp4").exists()
+
+    # 2. Real purge keeps palettes and all Markdown/JSON reports
+    res = purge_campaign_media(run_dir, keep_palettes=True, dry_run=False)
+    assert res["deleted_count"] == 6
+    assert not (app_assets / "gameplay_video" / "gameplay_01.mp4").exists()
+    assert not (run_dir / "assets" / "domain_references" / "ref_01_brand.jpg").exists()
+    assert (run_dir / "assets" / "domain_references" / "domain_palette_card.png").exists()
+    assert (app_assets / "color_palette_card.png").exists()
+    assert (run_dir / "GENEL_TEARDOWN_RAPORU.md").exists()
+    assert (run_dir / "apps" / "gp_demo" / "teardown_report.md").exists()
+    cfg = json.loads((run_dir / "run_config.json").read_text(encoding="utf-8"))
+    assert "media_purged_at" in cfg
+
+    # 3. Purge with keep_palettes=False removes palette PNGs while keeping reports
+    res2 = purge_campaign_media(run_dir, keep_palettes=False, dry_run=False)
+    assert res2["deleted_count"] == 2
+    assert not (app_assets / "color_palette_card.png").exists()
+    assert (run_dir / "TASARIM_BLUEPRINT.md").exists()
+
+
+def test_official_only_cli_flags_and_rebuild_persistence(tmp_path: Path) -> None:
+    parser = build_parser()
+    td = parser.parse_args(["teardown", "--idea", "burger game", "--official-only"])
+    assert td.official_only is True
+    disc = parser.parse_args(["discover", "runner", "--official-only"])
+    assert disc.official_only is True
+    dom = parser.parse_args(["research-domain", "--idea", "burger", "--official-only"])
+    assert dom.official_only is True
+    prg = parser.parse_args(["purge-media", "teardowns/demo", "--dry-run", "--remove-palettes"])
+    assert prg.dry_run is True and prg.remove_palettes is True
+
+    run_dir = tmp_path / "2026-11-27_2110_official"
+    (run_dir / "apps").mkdir(parents=True)
+    brief = decompose_idea("Burger runner game", product_mode="game", selected_tech="godot")
+    run = TeardownRun(
+        run_id="2026-11-27_2110_official",
+        campaign_name="official-demo",
+        query=brief.mechanic_query,
+        product_mode="game",
+        stores=["apple_app_store"],
+        country="us",
+        lang="en",
+        limit_per_store=5,
+        max_video_sec=240,
+        max_frames=24,
+        created_at="2026-11-27T21:10:00+00:00",
+        output_dir=str(run_dir),
+        official_only=True,
+        idea_brief=brief,
+        competitors=[],
+        cross_analysis={"total_competitors": 0, "dominant_mode": "game"},
+    )
+    write_campaign_reports(run, run_dir)
+    write_dashboard(run, run_dir)
+    assert "official-only" in (run_dir / "GENEL_TEARDOWN_RAPORU.md").read_text(encoding="utf-8")
+    assert "purge-media" in (run_dir / "GENEL_TEARDOWN_RAPORU.md").read_text(encoding="utf-8")
+
+    rebuilt = rebuild_teardown_reports(run_dir)
+    assert rebuilt.official_only is True
+
 
 
 

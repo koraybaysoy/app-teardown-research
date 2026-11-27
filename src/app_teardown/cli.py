@@ -20,7 +20,7 @@ from .config import (
 from .domain_researcher import harvest_domain_reference_images
 from .idea_planner import build_domain_image_queries, decompose_idea, research_domain_knowledge
 from .models import TeardownRun
-from .pipeline import analyze_single_video, rebuild_teardown_reports, run_teardown
+from .pipeline import analyze_single_video, purge_campaign_media, rebuild_teardown_reports, run_teardown
 from .report_generator import write_domain_and_kits_reports
 from .store_discovery import discover_app_store, discover_google_play
 from .web_researcher import collect_competitor_web_evidence
@@ -54,6 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_disc.add_argument("--country", default="us")
     p_disc.add_argument("--lang", default="en")
     p_disc.add_argument("--limit", type=int, default=5)
+    p_disc.add_argument("--official-only", action="store_true", help="Use only official APIs (Apple iTunes Search API; skip unofficial Google Play scraping)")
     p_disc.add_argument("--json", action="store_true")
 
     # 3. teardown
@@ -66,6 +67,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_td.add_argument("--domain-topics", nargs="*", default=[], help="Custom real-world subject-matter research queries (e.g. 'hamburger layers order')")
     p_td.add_argument("--no-domain-images", action="store_true", help="Skip downloading real-world & famous brand reference photos")
     p_td.add_argument("--max-domain-images", type=int, default=DEFAULT_MAX_DOMAIN_IMAGES, help="Max real-world & famous brand reference photos to download (default: 12)")
+    p_td.add_argument("--official-only", action="store_true", help="Compliance mode: use only official/open-licensed APIs (Apple iTunes API, Wikipedia, Wikimedia Commons, Openverse, curated CC0/MIT kits); skip YouTube, Google Play, Apple HTML, Bing, and DuckDuckGo scraping")
     p_td.add_argument("--query", default="", help="Competitor mechanic/category query for store search")
     p_td.add_argument("--targets", nargs="*", default=[], help="Specific store URLs or app IDs")
     p_td.add_argument("--stores", default="both", help="google_play, apple_app_store, or both")
@@ -90,6 +92,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_dom.add_argument("--out-dir", default="", help="Output folder to save DOMAIN_ARASTIRMASI.md, downloaded reference photos, moodboard sheet, and palette card")
     p_dom.add_argument("--max-images", type=int, default=DEFAULT_MAX_DOMAIN_IMAGES, help="Max visual reference photos to download when --out-dir is set")
     p_dom.add_argument("--no-images", action="store_true", help="Skip downloading reference photos")
+    p_dom.add_argument("--official-only", action="store_true", help="Compliance mode: use only official Wikipedia, Wikimedia Commons, and Openverse CC APIs")
     p_dom.add_argument("--country", default="us")
     p_dom.add_argument("--lang", default="en")
     p_dom.add_argument("--out", default="", help="Optional JSON output file path")
@@ -123,7 +126,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_reb = sub.add_parser("rebuild", help="Rebuild Markdown reports and dashboard.html for an existing teardown campaign.")
     p_reb.add_argument("campaign_dir")
 
-    # 9. list
+    # 9. purge-media
+    p_prg = sub.add_parser("purge-media", help="Delete downloaded third-party media (videos, frames, store screenshots, icons, brand photos) while preserving all authored Markdown reports and JSON indices.")
+    p_prg.add_argument("campaign_dir", help="Path to the teardown campaign directory")
+    p_prg.add_argument("--dry-run", action="store_true", help="Preview files to delete without removing anything")
+    p_prg.add_argument("--remove-palettes", action="store_true", help="Also remove generated HEX palette card PNGs")
+
+    # 10. list
     sub.add_parser("list", help="List saved teardown campaigns under ./teardowns.")
 
     return parser
@@ -164,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "discover":
-        stores = _parse_stores(args.stores)
+        stores = ["apple_app_store"] if args.official_only else _parse_stores(args.stores)
         out: dict[str, list] = {}
         if "google_play" in stores:
             out["google_play"] = discover_google_play(args.query, lang=args.lang, country=args.country, limit=args.limit)
@@ -204,10 +213,12 @@ def main(argv: list[str] | None = None) -> int:
             famous_brands=args.famous_brands,
             download_domain_images=not args.no_domain_images,
             max_domain_images=args.max_domain_images,
+            official_only=args.official_only,
         )
         print(json.dumps({
             "run_id": run.run_id,
             "output_dir": run.output_dir,
+            "official_only": run.official_only,
             "competitor_count": len(run.competitors),
             "domain_evidence_count": len(run.domain_evidence),
             "domain_reference_images_count": len(run.domain_references),
@@ -245,6 +256,7 @@ def main(argv: list[str] | None = None) -> int:
             country=args.country,
             core_subject=core_subject,
             famous_brands=famous_brands,
+            official_only=args.official_only,
         )
 
         refs = []
@@ -267,6 +279,7 @@ def main(argv: list[str] | None = None) -> int:
                     max_images=args.max_images,
                     lang=args.lang,
                     country=args.country,
+                    official_only=args.official_only,
                 )
             stub_run = TeardownRun(
                 run_id=out_dir_path.name,
@@ -368,6 +381,15 @@ def main(argv: list[str] | None = None) -> int:
             "output_dir": run.output_dir,
             "competitor_count": len(run.competitors),
         }, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "purge-media":
+        res = purge_campaign_media(
+            Path(args.campaign_dir),
+            keep_palettes=not args.remove_palettes,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(res, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "list":

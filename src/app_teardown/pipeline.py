@@ -51,7 +51,7 @@ from .store_discovery import (
     fetch_app_store_competitor,
     fetch_google_play_competitor,
 )
-from .utils import parse_store_target, safe_join, slugify
+from .utils import format_bytes, parse_store_target, safe_join, slugify
 from .web_researcher import collect_competitor_web_evidence
 from .youtube_harvester import download_youtube_clip, search_youtube_gameplay
 
@@ -177,9 +177,14 @@ def run_teardown(
     famous_brands: list[str] | None = None,
     download_domain_images: bool = True,
     max_domain_images: int = DEFAULT_MAX_DOMAIN_IMAGES,
+    official_only: bool = False,
 ) -> TeardownRun:
-    """Execute full Idea-to-Build teardown: idea decomposition, dual-store discovery, YouTube frames, real-world subject & brand photo research, free kits, reports & dashboard."""
+    """Execute full Idea-to-Build teardown: idea decomposition, store discovery, optional YouTube frames, real-world subject & brand photo research, free kits, reports & dashboard."""
     selected_stores = stores or ["google_play", "apple_app_store"]
+    if official_only:
+        if "google_play" in selected_stores:
+            logger.info("Official-only compliance mode: restricting store discovery to official Apple iTunes API (skipping unofficial Google Play scraping).")
+        selected_stores = ["apple_app_store"]
     target_list = [t.strip() for t in (targets or []) if t and t.strip()]
 
     # 0. Idea decomposition (separates mechanic benchmark query from real-world domain + brand photo research)
@@ -251,13 +256,24 @@ def run_teardown(
                 logger.warning("Apple App Store discovery failed: %s", exc)
 
     # 2. Harvest each competitor
+    effective_download_videos = download_videos and not official_only
+    effective_comp_web = run_web_research and not official_only
     competitors: list[CompetitorRecord] = []
     for st, aid, ctry in resolved_targets:
+        if official_only and st == "google_play":
+            logger.info("Official-only compliance mode: skipping Google Play target %s", aid)
+            continue
         try:
             if st == "google_play":
                 record = fetch_google_play_competitor(aid, lang=lang, country=ctry, review_count=review_count)
             else:
-                record = fetch_app_store_competitor(aid, country=ctry, lang=lang, review_count=review_count)
+                record = fetch_app_store_competitor(
+                    aid,
+                    country=ctry,
+                    lang=lang,
+                    review_count=review_count,
+                    official_only=official_only,
+                )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed fetching %s:%s -> %s", st, aid, exc)
             continue
@@ -274,7 +290,7 @@ def run_teardown(
         app_dir.mkdir(parents=True, exist_ok=True)
         download_store_visuals(record, app_dir)
 
-        if download_videos:
+        if effective_download_videos:
             try:
                 yt_candidates = search_youtube_gameplay(
                     record.title,
@@ -321,7 +337,7 @@ def run_teardown(
 
         _build_combined_palette(record, app_dir)
 
-        if run_web_research:
+        if effective_comp_web:
             try:
                 record.web_evidence = collect_competitor_web_evidence(
                     record.title,
@@ -364,6 +380,7 @@ def run_teardown(
                 country=country,
                 core_subject=idea_brief.core_subject,
                 famous_brands=idea_brief.famous_brands,
+                official_only=official_only,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Domain knowledge research failed: %s", exc)
@@ -381,6 +398,7 @@ def run_teardown(
                 max_images=max_domain_images,
                 lang=lang,
                 country=country,
+                official_only=official_only,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Domain visual reference harvesting failed: %s", exc)
@@ -389,7 +407,7 @@ def run_teardown(
         product_mode=resolved_mode,
         selected_tech=resolved_tech,
         theme_label=resolved_theme,
-        run_live_web_search=run_web_research,
+        run_live_web_search=run_web_research and not official_only,
         lang=lang,
         country=country,
     )
@@ -407,6 +425,7 @@ def run_teardown(
         max_frames=max_frames,
         created_at=datetime.now(tz=timezone.utc).isoformat(),
         output_dir=str(run_dir),
+        official_only=official_only,
         idea_brief=idea_brief,
         domain_evidence=domain_ev,
         domain_references=domain_refs,
@@ -562,6 +581,7 @@ def rebuild_teardown_reports(campaign_dir: Path) -> TeardownRun:
         max_frames=int(cfg.get("max_frames") or DEFAULT_MAX_FRAMES),
         created_at=cfg.get("created_at") or datetime.now(tz=timezone.utc).isoformat(),
         output_dir=str(campaign_dir),
+        official_only=bool(cfg.get("official_only", False)),
         idea_brief=idea_brief,
         domain_evidence=domain_ev,
         domain_references=domain_refs,
@@ -575,3 +595,99 @@ def rebuild_teardown_reports(campaign_dir: Path) -> TeardownRun:
     write_campaign_reports(run, campaign_dir)
     write_dashboard(run, campaign_dir)
     return run
+
+
+def purge_campaign_media(
+    campaign_dir: Path,
+    keep_palettes: bool = True,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Delete downloaded third-party media (videos, keyframes, screenshots, icons, brand reference photos) while preserving authored Markdown reports and JSON indices."""
+    root = campaign_dir.resolve()
+    if not root.exists() or not root.is_dir():
+        raise ValueError(f"Campaign directory does not exist: {root}")
+    root_prefix = str(root) + "\\" if "\\" in str(root) else str(root) + "/"
+
+    palette_names = {"color_palette_card.png", "domain_palette_card.png"}
+    media_exts = {".mp4", ".mkv", ".webm", ".mov", ".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+    candidate_dirs: list[Path] = []
+    dom_refs_dir = root / "assets" / "domain_references"
+    if dom_refs_dir.exists() and dom_refs_dir.is_dir():
+        candidate_dirs.append(dom_refs_dir)
+
+    apps_dir = root / "apps"
+    if apps_dir.exists() and apps_dir.is_dir():
+        for app_dir in sorted(apps_dir.iterdir()):
+            if not app_dir.is_dir():
+                continue
+            app_assets = app_dir / "assets"
+            if app_assets.exists() and app_assets.is_dir():
+                candidate_dirs.append(app_assets)
+
+    targets: list[Path] = []
+    for base in candidate_dirs:
+        for fp in sorted(base.rglob("*")):
+            if not fp.is_file():
+                continue
+            resolved_fp = fp.resolve()
+            if not str(resolved_fp).startswith(root_prefix):
+                continue
+            if resolved_fp.suffix.lower() not in media_exts:
+                continue
+            if keep_palettes and resolved_fp.name in palette_names:
+                continue
+            targets.append(resolved_fp)
+
+    deleted_rel: list[str] = []
+    freed_bytes = 0
+    for fp in targets:
+        try:
+            fsize = fp.stat().st_size
+        except OSError:
+            fsize = 0
+        rel = fp.relative_to(root).as_posix()
+        deleted_rel.append(rel)
+        freed_bytes += fsize
+        if not dry_run:
+            try:
+                fp.unlink(missing_ok=True)
+            except OSError as exc:
+                logger.warning("Could not delete %s: %s", fp, exc)
+
+    if not dry_run:
+        # Remove empty media subdirectories (bottom-up), never deleting campaign root or reports
+        for base in candidate_dirs:
+            for sub in sorted(base.rglob("*"), reverse=True):
+                if sub.is_dir():
+                    try:
+                        sub.rmdir()
+                    except OSError:
+                        pass
+            try:
+                base.rmdir()
+            except OSError:
+                pass
+        cfg_path = root / "run_config.json"
+        if cfg_path.exists():
+            try:
+                cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+                cfg["media_purged_at"] = datetime.now(tz=timezone.utc).isoformat()
+                cfg["media_purged_files_count"] = len(deleted_rel)
+                cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Could not stamp run_config.json after purge: %s", exc)
+
+    preserved_reports = [
+        p.name for p in sorted(root.glob("*.md"))
+    ]
+    return {
+        "campaign_dir": str(root),
+        "dry_run": dry_run,
+        "keep_palettes": keep_palettes,
+        "deleted_count": len(deleted_rel),
+        "freed_bytes": freed_bytes,
+        "freed_human": format_bytes(freed_bytes),
+        "deleted_files": deleted_rel,
+        "preserved_reports": preserved_reports,
+    }

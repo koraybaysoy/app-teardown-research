@@ -54,9 +54,9 @@ Bu Python eklentisi tüm ürün teardown sürecini API ücreti olmadan kendi bil
 - **Raporlar, Tasarım Blueprint'i, Prototip Planı ve Yerel Stüdyo (`dashboard.html`):**
   - Rakip başı `teardown_report.md`, `web_research.md`, `store_metadata.md` ve `evidence.json` dosyalarını üretir. Kampanya kökünde `GENEL_TEARDOWN_RAPORU.md`, `DOMAIN_ARASTIRMASI.md`, `FREE_ASSET_VE_KIT_REHBERI.md`, `TASARIM_BLUEPRINT.md`, `PROTOTIP_VE_TAM_SURUM_PLANI.md`, `apps_index.csv` ve CSP korumalı etkileşimli `dashboard.html` yer alır.
 - **Prototip -> Geri Bildirim -> Tam Sürüm İnşa Akışı:**
-  - Tüm araştırma ve raporlama bittikten sonra ajan sana uygulamanın/oyunun kısaca nasıl çalışacağını gösteren hızlı bir **prototip** oluşturmayı sorar.
-  - Prototip oluşturulduktan sonra şu an çalışan özellikleri, **tam sürümde eklenecekleri ve tamamlanınca nasıl olacağını** net tabloyla sunar; eklemek istediğin fikirleri ve değişiklik geri bildirimlerini toplar.
-  - Sen **"her şey tamam, yap"** dediğinde tüm uygulamayı/oyunu baştan sona tam sürüm olarak inşa eder.
+  - Tüm araştırma ve raporlama bittikten sonra ajan, uygulamanın ya da oyunun kısaca nasıl çalışacağını gösteren hızlı bir **prototip** oluşturmayı sorar.
+  - Prototip çalıştığında mevcut özellikleri ve **tam sürümde eklenecek tüm katmanları** net bir fark tablosuyla sunar; eklemek istediğin fikirleri ve değişiklik geri bildirimlerini toplar.
+  - **"Her şey tamam, yap"** onayı verdiğinde tüm uygulamayı ya da oyunu baştan sona tam sürüm olarak inşa eder.
 
 ## Hızlı Kurulum
 
@@ -86,7 +86,7 @@ npx skills add https://github.com/koraybaysoy/app-teardown-research
 - **Antigravity:** Kök dizindeki `plugin.json`, `mcp_config.json`, `.agents/skills/` ve `.agents/rules/` ile doğrudan çalışır.
 - **Claude Code:** `/plugin install app-teardown --marketplace koraybaysoy/app-teardown-research`
 - **Cursor:** `.cursor-plugin/`, `.cursor/rules/app-teardown.mdc` ve `.mcp.json` hazırdır.
-- **MCP Sunucusu:** `python -m app_teardown.mcp_server` ile 9 MCP aracı stdio üzerinden açılır.
+- **MCP Sunucusu:** `python -m app_teardown.mcp_server` ile 10 MCP aracı stdio üzerinden açılır.
 
 ## Temel CLI Kullanımı
 
@@ -118,7 +118,28 @@ npx skills add https://github.com/koraybaysoy/app-teardown-research
 
 # 5. Mevcut kampanyanın rapor ve dashboard'unu yeniden üret
 .\.venv\Scripts\python.exe -m app_teardown.cli rebuild "teardowns/<kampanya_klasoru>"
+
+# 6. Sadece resmi ve açık lisanslı API'lerle uyumlu mod (Apple iTunes API, Wikipedia, Wikimedia Commons, Openverse, doğrulanmış CC0/MIT kitler)
+.\.venv\Scripts\python.exe -m app_teardown.cli teardown `
+  --idea "kapılardan geçtiğin burger yapma oyunu" `
+  --tech godot `
+  --official-only `
+  --name "burger-official-apis"
+
+# 7. Raporlama bitince indirilen 3. parti medyaları temizle (yazılan Markdown raporları korunur)
+.\.venv\Scripts\python.exe -m app_teardown.cli purge-media "teardowns/<kampanya_klasoru>" --dry-run
+.\.venv\Scripts\python.exe -m app_teardown.cli purge-media "teardowns/<kampanya_klasoru>"
 ```
+
+## Hukuki Uyarı, Kullanım Şartları (ToS) ve Sorumlu Kullanım
+
+Bu araç yalnızca **yerel ve özel pazar/ürün araştırması** için çalışır. Kullandığın platformların Kullanım Şartları, telif/marka hukuku ve veri gizliliği kurallarına uymak kullanıcı sorumluluğundadır:
+
+- **Resmi API Uyumlu Mod (`--official-only`):** Varsayılan yerel modda resmi olmayan veri kaynakları (YouTube `yt-dlp`, Google Play, Apple HTML, Bing Images, DuckDuckGo) devreye girebilir. Tam platform uyumu için `--official-only` bayrağını ver; araç yalnızca resmi ve açık lisanslı API'leri (Apple iTunes Search/Lookup/RSS API, Wikipedia API, Wikimedia Commons, Openverse ve doğrulanmış `CC0`/`MIT`/`SIL OFL` kitler) kullanır. Video kare analizi için kendi lokal ekran kaydını `extract-video` komutuna verebilirsin.
+- **3. Parti Medyaları Paylaşma, İnceleme Bitince Temizle:** İndirdiğin YouTube klipleri, rakip ekran görüntüleri, ikonlar ve ünlü marka referans fotoğrafları ilgili hak sahiplerinin telifi altındadır. `teardowns/` klasörünü GitHub'a commit etme ve dışarıyla paylaşma. İnceleme bitince `app-teardown purge-media <kampanya_klasoru>` komutuyla indirilen medyaları sil, yalnızca kendi yazdığın raporları tut.
+- **KVKK / GDPR Gizliliği:** Araç mağaza yorumlarındaki kullanıcı adlarını varsayılan olarak anonimleştirir (`reviewer_01`, `reviewer_02`, ...) ve kişisel kullanıcı adı saklamaz.
+- **`robots.txt` Saygısı:** 3. parti web sitelerinden referans fotoğraf indirmeden önce ilgili sitenin `robots.txt` kuralını kontrol eder, izin vermeyen host'ları atlar.
+- **Özgün Ürün ve Lisans Kontrolü:** İndirilen marka logolarını veya rakip görsellerini kopyalama; yalnızca soyut tasarım ilkelerini inceleyip özgün stilize varlıklar üret. Canlı web aramasından gelen ücretsiz asset kitlerinde ticari kullanıma kapalı (`CC BY-NC`) ya da paylaşım zorunluluğu olan (`CC BY-SA`) lisansları yayın öncesi kontrol et.
 
 ## Lisans
 

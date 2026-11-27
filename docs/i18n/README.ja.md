@@ -2,7 +2,7 @@
 
 # App & Game Teardown Research Toolkit
 
-**AIコーディングエージェント向けのモバイルアプリ・ゲーム設計前競合分析ツールキット。技術スタック選定（Godot、Unity、Flutter、React Native）、App Store・Google Play 上位5件のYouTubeフレーム分解、HEXカラーパレット生成、ドメイン知識調査、無料CC0 UI/UX・3D・効果音キット収集、設計ブループリント出力までをローカルで完結します。**
+**AIコーディングエージェント向けのモバイルアプリ・ゲーム設計前競合分析ツールキット。技術スタック選定（Godot、Unity、Flutter、React Native）、App Store・Google Play 上位5件のYouTubeフレーム分解、現実世界の題材・構造・有名ブランド参照写真の収集、無料CC0 UI/UX・3D・効果音キット選定、試作プロトタイプ確認とフィードバック後の本実装までをローカルで完結します。**
 
 <p>
   <a href="../../README.md">English</a> ·
@@ -21,11 +21,13 @@
 
 ## 主な機能
 
-- **アイデア分解・技術選定・ドメイン調査 (`plan-idea`)：** Godot 4 / Unity 6 / Phaser または Flutter / React Native / Native の3案を比較提示します。競合のメカニクス調査とテーマ固有のドメイン知識（例：ハンバーガーの層順や調理工程）を分けて `DOMAIN_ARASTIRMASI.md` に記録します。
+- **アイデア分解・技術選定 (`plan-idea`)：** Godot 4 / Unity 6 / Phaser または Flutter / React Native / Native の3案を比較提示し、競合メカニクス調査と現実世界の題材調査を分離します。
+- **現実世界の題材・構造・有名ブランド参照画像収集 (`research-domain`)：** 定義・作り方・層構造・有名ブランド（Wikipedia + DuckDuckGo）を `DOMAIN_ARASTIRMASI.md` にまとめ、参照写真から `domain_reference_sheet.png` と `domain_palette_card.png` を生成します。
 - **無料 UI/UX・3D/2Dモデル・SFX・SDKキット検索 (`find-kits`)：** 選んだ技術とテーマに合う `CC0` / `MIT` / `SIL OFL` 素材（Kenney、KayKit、Quaternius、Poly Pizza、Freesound CC0、Godot AdMob、RevenueCat）を `FREE_ASSET_VE_KIT_REHBERI.md` にまとめます。
-- **両ストア人気トップ5発見（APIキー不要）：** Google Play と Apple App Store から競合、IAP価格帯、広告フラグ、レビューを取得します。
+- **両ストア人気トップ5発見（APIキー不要）：** Google Play と Apple App Store から競合、IAP価格帯、広告フラグ、匿名化レビューを取得します。
 - **YouTube実機取得・フレーム抽出・配色解析 (`yt-dlp` + `FFmpeg` + `Pillow`)：** 冒頭4分から24フレームを抽出し、3x4ストーリーボードと `color_palette_card.png` を生成します。
-- **レポート・設計ブループリント・ローカルダッシュボード (`dashboard.html`)：** 根拠ID付きの `teardown_report.md`、`GENEL_TEARDOWN_RAPORU.md`、`TASARIM_BLUEPRINT.md` と厳格CSP対応のローカルスタジオを出力します。
+- **プロトタイプ確認・フィードバック・本実装フロー (`PROTOTIP_VE_TAM_SURUM_PLANI.md`)：** 調査完了後にまず軽量プロトタイプ作成を提案し、製品版で追加する要素を提示してフィードバックを得た上で全体を実装します。
+- **公式API準拠モードとメディア削除 (`--official-only`, `purge-media`)：** Apple iTunes / Wikipedia / Wikimedia Commons / Openverse の公式・オープンAPIのみに制限でき、`robots.txt` を尊重し、レポートを残して第三者メディアを一括削除できます。
 
 ## クイックセットアップ
 

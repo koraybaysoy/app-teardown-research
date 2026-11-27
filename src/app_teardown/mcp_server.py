@@ -23,7 +23,7 @@ from .config import (
 from .domain_researcher import harvest_domain_reference_images
 from .idea_planner import build_domain_image_queries, decompose_idea, research_domain_knowledge
 from .models import TeardownRun
-from .pipeline import analyze_single_video, rebuild_teardown_reports, run_teardown
+from .pipeline import analyze_single_video, purge_campaign_media, rebuild_teardown_reports, run_teardown
 from .report_generator import write_domain_and_kits_reports
 from .store_discovery import discover_app_store, discover_google_play
 from .utils import safe_join, slugify
@@ -50,12 +50,17 @@ def discover_top_apps(
     country: str = "us",
     lang: str = "en",
     limit: int = 5,
+    official_only: bool = False,
 ) -> dict[str, Any]:
-    """Discover the top popular competitor apps/games on Google Play and/or Apple App Store without downloading media yet."""
+    """Discover the top popular competitor apps/games on Google Play and/or Apple App Store without downloading media yet. Set official_only=True to query strictly Apple's official iTunes Search API."""
     selected = (
-        ["google_play", "apple_app_store"]
-        if stores in ("both", "all")
-        else [s.strip() for s in stores.split(",") if s.strip()]
+        ["apple_app_store"]
+        if official_only
+        else (
+            ["google_play", "apple_app_store"]
+            if stores in ("both", "all")
+            else [s.strip() for s in stores.split(",") if s.strip()]
+        )
     )
     res: dict[str, Any] = {}
     if "google_play" in selected:
@@ -87,8 +92,9 @@ def run_product_teardown(
     run_web_research: bool = True,
     download_domain_images: bool = True,
     max_domain_images: int = DEFAULT_MAX_DOMAIN_IMAGES,
+    official_only: bool = False,
 ) -> dict[str, Any]:
-    """Run full Idea-to-Build teardown: mechanic-based top-5 competitor discovery, YouTube gameplay/walkthrough clips, hybrid keyframes, color palettes, real-world domain & famous brand visual reference research, free UI/model/SFX kits, reports, and dashboard.html."""
+    """Run full Idea-to-Build teardown: mechanic-based top-5 competitor discovery, YouTube gameplay/walkthrough clips, hybrid keyframes, color palettes, real-world domain & famous brand visual reference research, free UI/model/SFX kits, reports, and dashboard.html. Set official_only=True for strict official/open-licensed API compliance mode."""
     selected = (
         ["google_play", "apple_app_store"]
         if stores in ("both", "all")
@@ -115,10 +121,12 @@ def run_product_teardown(
         famous_brands=famous_brands,
         download_domain_images=download_domain_images,
         max_domain_images=max_domain_images,
+        official_only=official_only,
     )
     return {
         "run_id": run.run_id,
         "output_dir": run.output_dir,
+        "official_only": run.official_only,
         "competitor_count": len(run.competitors),
         "domain_evidence_count": len(run.domain_evidence),
         "domain_reference_images_count": len(run.domain_references),
@@ -164,8 +172,9 @@ def research_domain_subject(
     max_images: int = DEFAULT_MAX_DOMAIN_IMAGES,
     country: str = "us",
     lang: str = "en",
+    official_only: bool = False,
 ) -> dict[str, Any]:
-    """Research real-world subject matter (what it is, how it is made, layers/anatomy, famous real-world brands) and download visual reference photos, moodboard contact sheet, and real-world HEX palette under teardowns/<output_subfolder>."""
+    """Research real-world subject matter (what it is, how it is made, layers/anatomy, famous real-world brands) and download visual reference photos, moodboard contact sheet, and real-world HEX palette under teardowns/<output_subfolder>. Set official_only=True for strictly Wikipedia + Wikimedia Commons + Openverse CC APIs."""
     brief = decompose_idea(
         idea=idea or subject or (" ".join(topics or [])),
         explicit_domain_topics=topics,
@@ -182,6 +191,7 @@ def research_domain_subject(
         country=country,
         core_subject=resolved_subject,
         famous_brands=resolved_brands,
+        official_only=official_only,
     )
 
     refs = []
@@ -203,6 +213,7 @@ def research_domain_subject(
                 max_images=max_images,
                 lang=lang,
                 country=country,
+                official_only=official_only,
             )
         stub_run = TeardownRun(
             run_id=out_dir.name,
@@ -332,6 +343,17 @@ def rebuild_campaign_teardown(campaign_folder_name: str) -> dict[str, Any]:
         "output_dir": run.output_dir,
         "competitor_count": len(run.competitors),
     }
+
+
+@mcp.tool()
+def purge_campaign_media_tool(
+    campaign_folder_name: str,
+    keep_palettes: bool = True,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Delete downloaded third-party media (videos, keyframes, store screenshots, icons, brand photos) inside teardowns/<campaign_folder_name> while keeping authored Markdown reports and JSON indices."""
+    target = safe_join(DEFAULT_RESEARCH_DIR, campaign_folder_name)
+    return purge_campaign_media(target, keep_palettes=keep_palettes, dry_run=dry_run)
 
 
 def main() -> None:

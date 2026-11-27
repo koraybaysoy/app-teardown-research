@@ -31,6 +31,7 @@ from .models import ColorSwatch, DomainEvidenceItem, DomainReferenceImage
 from .utils import (
     create_http_session,
     fetch_public_image_bytes,
+    is_url_allowed_by_robots,
     safe_join,
     sanitize_untrusted_text,
     slugify,
@@ -255,8 +256,9 @@ def research_domain_knowledge_structured(
     country: str = "us",
     max_per_topic: int = 3,
     polite_delay_sec: float = 0.35,
+    official_only: bool = False,
 ) -> list[DomainEvidenceItem]:
-    """Combine official Wikipedia real-world/brand knowledge with DuckDuckGo web snippets across all 4 domain pillars."""
+    """Combine official Wikipedia real-world/brand knowledge with optional DuckDuckGo web snippets across all 4 domain pillars."""
     items: list[DomainEvidenceItem] = []
     seen_urls: set[str] = set()
     now_iso = datetime.now(tz=timezone.utc).isoformat()
@@ -297,29 +299,30 @@ def research_domain_knowledge_structured(
         for brand_item in search_wikipedia_knowledge(brand, category="famous_brands", wiki_lang="en", max_articles=1):
             _add_item(brand_item)
 
-    # 3. Categorized web queries (DuckDuckGo HTML) for layers, how-it's-made, and brand comparisons
-    for idx, topic in enumerate(domain_topics):
-        clean_topic = (topic or "").strip()
-        if not clean_topic:
-            continue
-        cat = classify_domain_category(clean_topic)
-        if idx > 0 and polite_delay_sec > 0:
-            time.sleep(polite_delay_sec)
-        hits = search_duckduckgo_html(clean_topic, max_results=max_per_topic, lang=lang, country=country)
-        for hit in hits:
-            _add_item(DomainEvidenceItem(
-                topic=clean_topic,
-                query=clean_topic,
-                title=hit["title"],
-                url=hit["url"],
-                domain=hit["domain"],
-                snippet=hit["snippet"],
-                fetched_at=now_iso,
-                category=cat,
-                source_engine="duckduckgo",
-            ))
+    # 3. Categorized web queries (DuckDuckGo HTML) skipped when official_only=True
+    if not official_only:
+        for idx, topic in enumerate(domain_topics):
+            clean_topic = (topic or "").strip()
+            if not clean_topic:
+                continue
+            cat = classify_domain_category(clean_topic)
+            if idx > 0 and polite_delay_sec > 0:
+                time.sleep(polite_delay_sec)
+            hits = search_duckduckgo_html(clean_topic, max_results=max_per_topic, lang=lang, country=country)
+            for hit in hits:
+                _add_item(DomainEvidenceItem(
+                    topic=clean_topic,
+                    query=clean_topic,
+                    title=hit["title"],
+                    url=hit["url"],
+                    domain=hit["domain"],
+                    snippet=hit["snippet"],
+                    fetched_at=now_iso,
+                    category=cat,
+                    source_engine="duckduckgo",
+                ))
 
-    # 4. If DuckDuckGo returned no results for non-brand topics, add targeted Wikipedia fallback for the first 2 topics
+    # 4. If DuckDuckGo returned no results (or official_only), add targeted Wikipedia fallback for the first 2 topics
     non_wiki_count = sum(1 for i in items if i.source_engine != "wikipedia")
     if non_wiki_count == 0 and domain_topics:
         for topic in domain_topics[:2]:
@@ -687,8 +690,10 @@ def harvest_domain_reference_images(
     lang: str = "en",
     country: str = "us",
     polite_delay_sec: float = 0.25,
+    official_only: bool = False,
+    respect_robots: bool = True,
 ) -> tuple[list[DomainReferenceImage], str, list[ColorSwatch], str]:
-    """Download verified real-world & famous brand reference photos, build moodboard sheet & HEX palette card."""
+    """Download verified real-world & famous brand reference photos (respecting robots.txt and optional official-only APIs), build moodboard sheet & HEX palette card."""
     if not image_queries or max_images <= 0:
         return [], "", [], ""
 
@@ -722,12 +727,20 @@ def harvest_domain_reference_images(
         if q_idx > 0 and polite_delay_sec > 0:
             time.sleep(polite_delay_sec)
 
-        # Gather candidates: Bing Images primary (sharp official brand/product shots), Wikimedia Commons + Openverse backup
-        candidates = search_bing_images(q_str, max_results=6, lang=lang, country=country)
-        if len(candidates) < 2:
-            candidates.extend(search_wikimedia_commons_images(q_str, max_results=4))
-        if not candidates:
-            candidates.extend(search_openverse_images(q_str, max_results=3))
+        # Official-only mode strictly uses open-licensed Wikimedia Commons + Openverse APIs (no Bing scraping)
+        candidates: list[dict[str, str]] = []
+        if official_only:
+            # Strip trailing generic filler words like "product photo" so Commons/Openverse match better
+            clean_api_q = re.sub(r"\b(product photo|high quality photography|close up)\b", "", q_str, flags=re.IGNORECASE).strip() or q_str
+            candidates.extend(search_wikimedia_commons_images(clean_api_q, max_results=5))
+            if len(candidates) < 3:
+                candidates.extend(search_openverse_images(clean_api_q, max_results=4))
+        else:
+            candidates = search_bing_images(q_str, max_results=6, lang=lang, country=country)
+            if len(candidates) < 2:
+                candidates.extend(search_wikimedia_commons_images(q_str, max_results=4))
+            if not candidates:
+                candidates.extend(search_openverse_images(q_str, max_results=3))
 
         downloaded_for_query = 0
         for cand in candidates:
@@ -738,13 +751,23 @@ def harvest_domain_reference_images(
             if primary_u in seen_urls:
                 continue
 
-            active_sess = wiki_session if cand.get("source_engine") in ("wikimedia_commons", "openverse") else session
+            engine = cand.get("source_engine") or "bing_images"
+            active_sess = wiki_session if engine in ("wikimedia_commons", "openverse") else session
             raw_bytes: bytes | None = None
             final_url = ""
             last_err = ""
             for attempt_url in [u for u in (primary_u, thumb_u) if u]:
                 if attempt_url in seen_urls:
                     continue
+                # Respect robots.txt on arbitrary third-party hosts (official Wikimedia Commons API CDN is pre-authorized via User-Agent)
+                attempt_host = (urlparse(attempt_url).hostname or "").lower()
+                is_official_media_cdn = attempt_host.endswith("wikimedia.org")
+                if respect_robots and not is_official_media_cdn:
+                    if not is_url_allowed_by_robots(attempt_url, user_agent=str(active_sess.headers.get("User-Agent") or "*"), session=active_sess):
+                        last_err = f"Disallowed by robots.txt: {attempt_host}"
+                        logger.debug("Skipping %s (%s)", attempt_url, last_err)
+                        # If the primary source host disallows crawling via robots.txt, do not bypass via cached thumbnail
+                        break
                 try:
                     raw_bytes, final_url = fetch_public_image_bytes(
                         active_sess,

@@ -418,7 +418,8 @@ _DASHBOARD_JS = """/* App Teardown & Idea-to-Build Visual Studio — Safe DOM re
     "Mekanik Sorgusu: " + (runData.query || "Direct Targets"),
     "Teknoloji: " + (brief && brief.selected_tech ? brief.selected_tech.toUpperCase() : "Otomatik"),
     "Bölge/Dil: " + String(runData.country || "").toUpperCase() + " / " + (runData.lang || ""),
-    "Baskın Mod: " + String(ca.dominant_mode || runData.product_mode || "auto").toUpperCase()
+    "Baskın Mod: " + String(ca.dominant_mode || runData.product_mode || "auto").toUpperCase(),
+    "Uyumluluk: " + (runData.official_only ? "OFFICIAL APIs ONLY" : "Lokal Araştırma")
   ].forEach(function (t) {
     heroMeta.appendChild(el("span", null, t));
   });

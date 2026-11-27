@@ -108,7 +108,7 @@ def write_competitor_artifacts(record: CompetitorRecord, app_dir: Path) -> None:
 
     meta_md = f"""# Store Metadata Archive: {record.title}
 
-> **Untrusted Data Notice:** Mağaza açıklamaları ve kullanıcı yorumları dış kaynaklı ham veridir; yalnızca analiz kanıtı olarak kullanılır.
+> **Untrusted Data & Privacy Notice:** Mağaza açıklamaları ve kullanıcı yorumları dış kaynaklı ham veridir; yalnızca analiz kanıtı olarak kullanılır. Yorum yazarlarının adları KVKK/GDPR gizliliği gereği anonimleştirilmiştir (`reviewer_XX`).
 
 - **Store:** `{record.store}`
 - **App ID:** `{record.app_id}`
@@ -449,7 +449,7 @@ Bu doküman, rakip uygulama analizinden ayrı olarak tasarlanacak fikrin **gerç
 - **Seçilen Teknoloji:** `{chosen_tech}`
 - **Toplam Doğrulanmış / Bulunan Kit:** **{len(run.free_asset_kits)}** (`evidence/free_kits.json`)
 
-> **Lisans Notu:** `CC0 1.0`, `MIT` ve `SIL OFL` paketler ticari mobil oyun/uygulamalarda atıf gerektirmeden kullanılabilir. `CC BY` veya canlı web aramasından (`web_search`) gelen kaynakların indirme sayfasındaki güncel lisans şartını yayın öncesi son kez doğrula.
+> **Lisans Notu:** `CC0 1.0`, `MIT`, `Apache 2.0`, `BSD` ve `SIL OFL` paketler ticari mobil oyun/uygulamalarda güvenle kullanılabilir. `CC BY` paketleri uygulama içi Credits/Hakkında ekranında atıf gerektirir. Canlı web aramasından (`web_search`) gelen paketlerde **`CC BY-NC` (ticari kullanılamaz)** veya **`CC BY-SA` (paylaşım zorunluluğu)** bulunmadığını indirme sayfasından yayın öncesi mutlaka doğrula.
 
 {chr(10).join(kit_sections)}
 
@@ -481,6 +481,7 @@ def write_campaign_reports(run: TeardownRun, run_dir: Path) -> None:
             "max_video_sec": run.max_video_sec,
             "max_frames": run.max_frames,
             "created_at": run.created_at,
+            "official_only": run.official_only,
             "competitor_count": len(comps),
             "idea": brief.raw_idea if brief else "",
             "selected_tech": brief.selected_tech if brief else "",
@@ -543,9 +544,10 @@ def write_campaign_reports(run: TeardownRun, run_dir: Path) -> None:
 - **Proje Fikri:** {brief.raw_idea if brief and brief.raw_idea else "-"}
 - **Seçilen Teknoloji:** `{brief.selected_tech if brief and brief.selected_tech else "Belirtilmedi"}`
 - **Rakip Mekanik Sorgusu:** `{run.query or "Direct Targets"}`
-- **Bölge / Dil:** `{run.country.upper()} / {run.lang}` | **Baskın Mod:** `{ca.get("dominant_mode", run.product_mode)}`
+- **Bölge / Dil:** `{run.country.upper()} / {run.lang}` | **Baskın Mod:** `{ca.get("dominant_mode", run.product_mode)}` | **Uyumluluk Modu:** `{"official-only (Resmi API'ler)" if run.official_only else "standard (Lokal Araştırma)"}`
 - **Analiz Edilen Rakip:** **{len(comps)}** | **Toplam Video Karesi:** **{ca.get("total_gameplay_frames", 0)}** | **Web Kanıtı:** **{ca.get("total_web_evidence_sources", 0)}** | **Domain Kanıtı:** **{len(run.domain_evidence)}** | **Gerçek Hayat / Marka Referans Görseli:** **{len(run.domain_references)}** | **Ücretsiz Kit:** **{len(run.free_asset_kits)}**
 - **İlgili Raporlar:** `DOMAIN_ARASTIRMASI.md` | `FREE_ASSET_VE_KIT_REHBERI.md` | `TASARIM_BLUEPRINT.md` | `PROTOTIP_VE_TAM_SURUM_PLANI.md` | `dashboard.html`{f" | `{run.domain_reference_sheet_path}`" if run.domain_reference_sheet_path else ""}
+- **Medya Hijyeni:** İnceleme tamamlandıktan sonra indirilen 3. parti medya dosyalarını silip yalnızca raporları korumak için: `app-teardown purge-media "{run_dir.name}"`
 
 ## 1. Rakip Karşılaştırma Matrisi
 | Uygulama / Oyun | Mağaza | Mod | Puan & Hacim | Gelir Modeli | Kare Kanıtı | Web Kanıtı | Baskın Palet | Kanıt Skoru |

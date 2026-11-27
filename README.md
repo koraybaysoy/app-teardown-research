@@ -182,7 +182,18 @@ bash ./setup.sh
 # 7. Rebuild reports and dashboard.html without re-downloading media
 ./.venv/bin/python -m app_teardown.cli rebuild "teardowns/<campaign_folder>"
 
-# 8. List saved teardown campaigns
+# 8. Compliance mode (official & open-licensed APIs only: Apple iTunes API, Wikipedia, Wikimedia Commons, Openverse, curated CC0/MIT kits)
+./.venv/bin/python -m app_teardown.cli teardown \
+  --idea "hypercasual cooking gate runner game building burgers" \
+  --tech godot \
+  --official-only \
+  --name "burger-official-apis"
+
+# 9. Purge downloaded third-party media after completing reports (keeps all authored Markdown reports and JSON indices)
+./.venv/bin/python -m app_teardown.cli purge-media "teardowns/<campaign_folder>" --dry-run
+./.venv/bin/python -m app_teardown.cli purge-media "teardowns/<campaign_folder>"
+
+# 10. List saved teardown campaigns
 ./.venv/bin/python -m app_teardown.cli list
 ```
 
@@ -209,6 +220,7 @@ After I pick the engine, research the top 5 hypercasual runner competitors on Go
 - `collect_web_evidence`
 - `list_teardown_campaigns`
 - `rebuild_campaign_teardown`
+- `purge_campaign_media_tool`
 
 ## Output Structure
 
@@ -254,11 +266,22 @@ teardowns/
 
 ## Security and Privacy Notes
 
-- **SSRF Protection:** Media and store requests enforce HTTPS and allowlisted store, CDN, and YouTube hosts. Public web citation URLs and real-world reference photo downloads reject direct IPs, localhost, private/non-global DNS resolutions, SVG/HTML payloads, and unsafe redirect hops.
+- **SSRF & `robots.txt` Protection:** Media and store requests enforce HTTPS and allowlisted store, CDN, and YouTube hosts. Public web citation URLs and real-world reference photo downloads reject direct IPs, localhost, private/non-global DNS resolutions, SVG/HTML payloads, and unsafe redirect hops, and respect third-party `robots.txt` rules.
+- **Privacy by Default (KVKK / GDPR):** User review author names from Google Play and Apple App Store are automatically anonymized (`reviewer_01`, `reviewer_02`, ...) rather than stored as personal usernames.
 - **Path Safety:** Output folders and filenames are ASCII-slugified and checked via `safe_join()` against directory traversal.
 - **Subprocess Safety:** `ffmpeg` and `ffprobe` always run with `shell=False` and explicit argument arrays.
 - **Safe Local Dashboard:** `dashboard.html` enforces a strict Content Security Policy and creates all DOM nodes via `document.createElement` and `textContent` (zero `innerHTML`).
 - **Prompt Injection Defense:** Agent rules treat all scraped store text, reviews, YouTube titles, and web snippets strictly as untrusted data.
+
+## Legal, Terms of Service, and Responsible Use
+
+This toolkit is designed strictly for **local, private market research and pre-production product study**. You are responsible for complying with the Terms of Service, copyright laws, trademark laws, and privacy regulations applicable in your jurisdiction:
+
+- **Use `--official-only` for Strict Platform Compliance:** By default, local runs may query unofficial endpoints (YouTube clips via `yt-dlp`, Google Play web scraping, Apple Storefront HTML, Bing Images, DuckDuckGo HTML). Pass `--official-only` to run only official and open-licensed APIs (Apple iTunes Search/Lookup/RSS API, Wikipedia API, Wikimedia Commons API, Openverse API, and curated `CC0`/`MIT`/`SIL OFL` kits) and feed your own local screen recordings into `extract-video`.
+- **Do Not Redistribute Third-Party Media:** Downloaded videos, keyframes, competitor store screenshots, icons, and real-world/brand reference photos remain copyrighted by their respective owners. Keep `teardowns/` strictly local (git-ignored), never commit or publish downloaded third-party media, and run `app-teardown purge-media <campaign_dir>` once your own written reports are done.
+- **Do Not Clone Competitors or Copy Brand Trademarks:** Study abstract design patterns, UX flows, monetization timing, and real-world layer/process logic. Always ship 100% original code, original stylized art, and original branding. Never use third-party brand logos, packaging, or trademarked product names inside your app or store listing.
+- **Verify Third-Party Asset Licenses Before Shipping:** Curated `CC0 1.0`, `MIT`, `Apache 2.0`, `BSD`, and `SIL OFL` kits are commercially safe, while `CC BY` requires in-app attribution. Always inspect live web search asset hits to ensure they are not `CC BY-NC` (Non-Commercial) or `CC BY-SA` before commercial release.
+- **No Commercial Scraping SaaS:** Do not wrap the default scraping modes into a hosted multi-tenant SaaS or paid data resale service.
 
 ## License
 

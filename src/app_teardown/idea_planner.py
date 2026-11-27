@@ -693,8 +693,9 @@ def research_domain_knowledge(
     polite_delay_sec: float = 0.35,
     core_subject: str = "",
     famous_brands: list[str] | None = None,
+    official_only: bool = False,
 ) -> list[DomainEvidenceItem]:
-    """Run zero-API-key real-world subject & famous brand knowledge research (Wikipedia API + DuckDuckGo)."""
+    """Run zero-API-key real-world subject & famous brand knowledge research (Wikipedia API + optional DuckDuckGo)."""
     return research_domain_knowledge_structured(
         domain_topics=domain_topics,
         core_subject=core_subject,
@@ -703,4 +704,5 @@ def research_domain_knowledge(
         country=country,
         max_per_topic=max_per_topic,
         polite_delay_sec=polite_delay_sec,
+        official_only=official_only,
     )

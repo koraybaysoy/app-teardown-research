@@ -24,6 +24,7 @@ from .config import (
 )
 from .models import CompetitorRecord, IAPItem, ImageAsset, ReviewSample
 from .utils import (
+    anonymize_reviewer_id,
     create_http_session,
     http_get_json,
     parse_installs_int,
@@ -260,10 +261,10 @@ def fetch_google_play_competitor(
                 sort=Sort.MOST_RELEVANT,
                 count=review_count,
             )
-            for rv in revs:
+            for rev_idx, rv in enumerate(revs, start=1):
                 at = rv.get("at")
                 reviews.append(ReviewSample(
-                    author=str(rv.get("userName") or ""),
+                    author=anonymize_reviewer_id(rev_idx),
                     rating=int(rv.get("score") or 0),
                     text=str(rv.get("content") or ""),
                     date=at.strftime("%Y-%m-%d") if hasattr(at, "strftime") else str(at or ""),
@@ -411,7 +412,7 @@ def _fetch_apple_reviews(session, app_id: str, country: str, limit: int = 30) ->
             if not isinstance(entry, dict) or "im:rating" not in entry:
                 continue
             samples.append(ReviewSample(
-                author=str(((entry.get("author") or {}).get("name") or {}).get("label") or ""),
+                author=anonymize_reviewer_id(len(samples) + 1),
                 rating=int((entry.get("im:rating") or {}).get("label") or 0),
                 title=str((entry.get("title") or {}).get("label") or ""),
                 text=str((entry.get("content") or {}).get("label") or ""),
@@ -431,6 +432,7 @@ def fetch_app_store_competitor(
     country: str = "us",
     lang: str = "en",
     review_count: int = 30,
+    official_only: bool = False,
 ) -> CompetitorRecord:
     """Fetch complete Apple App Store listing, IAP table, screenshots, and reviews."""
     clean_id = re.sub(r"\D+", "", str(app_id))
@@ -446,7 +448,8 @@ def fetch_app_store_competitor(
     if not results:
         raise ValueError(f"Apple App Store app not found: id={clean_id} country={country}")
     info = results[0]
-    extras = _scrape_apple_extras(session, clean_id, country)
+    # In official_only compliance mode, use strictly iTunes Lookup + RSS API (skip apps.apple.com HTML scraping)
+    extras = {"subtitle": "", "iaps": [], "videos": []} if official_only else _scrape_apple_extras(session, clean_id, country)
     reviews = _fetch_apple_reviews(session, clean_id, country, limit=review_count) if review_count > 0 else []
 
     title = str(info.get("trackName") or "").strip()
