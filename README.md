@@ -27,7 +27,7 @@
 <p>
   <img src="assets/dashboard-preview.png" alt="App Teardown Research local HTML dashboard preview showing competitor matrix, real-world subject study, gameplay keyframe timeline, and free CC0 kits" width="100%">
 </p>
-<p><sub>Self-contained local dashboard (<code>dashboard.html</code>, zero CDNs, strict CSP, Light and Dark Zinc themes) generated automatically after each research run.</sub></p>
+<p><sub>Self-contained local dark workbench (<code>dashboard.html</code>, zero CDNs, strict CSP, Dark and Light modes) generated automatically after each research run.</sub></p>
 
 </div>
 

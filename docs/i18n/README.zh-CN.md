@@ -20,7 +20,7 @@
 <p>
   <img src="../../assets/dashboard-preview.png" alt="本地 HTML 仪表板预览，展示竞品对比矩阵、现实主题研究、实机关键帧时间线与免费 CC0 资源包" width="100%">
 </p>
-<p><sub>每次调研完成后自动生成的独立本地仪表板（<code>dashboard.html</code>，零 CDN，严格 CSP，支持浅色与深色 Zinc 主题）。</sub></p>
+<p><sub>每次调研完成后自动生成的独立本地深色仪表板（<code>dashboard.html</code>，零 CDN，严格 CSP，支持深色与浅色切换）。</sub></p>
 
 </div>
 

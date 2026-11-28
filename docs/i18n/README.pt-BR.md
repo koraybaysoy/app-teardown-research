@@ -20,7 +20,7 @@
 <p>
   <img src="../../assets/dashboard-preview.png" alt="Prévia do painel HTML local com matriz de concorrentes, estudo do tema real, linha do tempo de quadros de gameplay e kits CC0 gratuitos" width="100%">
 </p>
-<p><sub>Painel local autônomo (<code>dashboard.html</code>, sem CDN, CSP estrita, temas Zinc claro e escuro) gerado automaticamente ao final de cada análise.</sub></p>
+<p><sub>Painel local autônomo em modo escuro (<code>dashboard.html</code>, sem CDN, CSP estrita, temas escuro e claro) gerado automaticamente ao final de cada análise.</sub></p>
 
 </div>
 

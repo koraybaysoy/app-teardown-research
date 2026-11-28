@@ -20,7 +20,7 @@
 <p>
   <img src="../../assets/dashboard-preview.png" alt="경쟁작 매트릭스, 실제 주제 분석, 게임플레이 키프레임 타임라인, 무료 CC0 키트를 보여주는 로컬 HTML 대시보드 미리보기" width="100%">
 </p>
-<p><sub>각 분석 실행 후 자동 생성되는 완전 로컬 대시보드(<code>dashboard.html</code>, 무CDN, 엄격한 CSP, 라이트/다크 Zinc 테마 지원).</sub></p>
+<p><sub>각 분석 실행 후 자동 생성되는 완전 로컬 다크 모드 대시보드(<code>dashboard.html</code>, 무CDN, 엄격한 CSP, 다크/라이트 모드 지원).</sub></p>
 
 </div>
 

@@ -20,7 +20,7 @@
 <p>
   <img src="../../assets/dashboard-preview.png" alt="Vista previa del panel HTML local con matriz de competidores, estudio del tema real, línea de tiempo de fotogramas y kits CC0 gratuitos" width="100%">
 </p>
-<p><sub>Panel local autónomo (<code>dashboard.html</code>, sin CDN, CSP estricta, temas Zinc claro y oscuro) generado automáticamente tras cada análisis.</sub></p>
+<p><sub>Panel local autónomo en modo oscuro (<code>dashboard.html</code>, sin CDN, CSP estricta, temas oscuro y claro) generado automáticamente tras cada análisis.</sub></p>
 
 </div>
 

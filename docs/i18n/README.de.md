@@ -20,7 +20,7 @@
 <p>
   <img src="../../assets/dashboard-preview.png" alt="Lokale HTML-Dashboard-Vorschau mit Wettbewerbsmatrix, realer Themenstudie, Gameplay-Keyframe-Zeitachse und kostenlosen CC0-Kits" width="100%">
 </p>
-<p><sub>Eigenständiges lokales Dashboard (<code>dashboard.html</code>, ohne CDN, strikte CSP, helles und dunkles Zinc-Theme), automatisch nach jedem Lauf erzeugt.</sub></p>
+<p><sub>Eigenständiges lokales Dark-Mode-Dashboard (<code>dashboard.html</code>, ohne CDN, strikte CSP, dunkles und helles Theme), automatisch nach jedem Lauf erzeugt.</sub></p>
 
 </div>
 
